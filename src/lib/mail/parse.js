@@ -24,13 +24,28 @@ function htmlToText(html) {
     .trim();
 }
 
-/** 문자 분포로 언어 추정 — AI 호출 전에 대략만 잡고, 최종 판정은 분석 단계에서 */
+/**
+ * 문자 분포로 언어 추정 — AI 호출 전에 대략만 잡고, 최종 판정은 분석 단계에서.
+ *
+ * 그냥 글자 수만 세면 한국어 메일이 영어로 잡힌다. 두 가지 이유가 겹친다.
+ *   1) URL·메일주소는 언어와 무관한데 전부 로마자다. 이카운트 웹메일이 붙이는
+ *      수신확인 링크 하나가 로마자 200자를 넘기기도 한다.
+ *   2) 한글은 한 글자가 영어 한 단어에 해당한다. 낱글자끼리 비교하면
+ *      영문 서명 블록만 있어도 본문이 한국어인 메일이 영어로 넘어간다.
+ * 그래서 URL·주소를 걷어내고, 로마자는 단어 수에 가깝게 환산해 비교한다.
+ */
+const LATIN_PER_WORD = 4; // 영어 평균 단어 길이 — 한글 1글자와 견주는 기준
+
 export function detectLang(text = '') {
-  const s = text.slice(0, 4000);
+  const s = text
+    .slice(0, 4000)
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/\b[\w.+-]+@[\w.-]+\.\w+\b/g, ' ');
+
   const ko = (s.match(/[가-힣]/g) || []).length;
   const ja = (s.match(/[぀-ヿ]/g) || []).length;
   const zh = (s.match(/[一-鿿]/g) || []).length;
-  const en = (s.match(/[A-Za-z]/g) || []).length;
+  const en = (s.match(/[A-Za-z]/g) || []).length / LATIN_PER_WORD;
 
   const max = Math.max(ko, ja, zh, en);
   if (max === 0) return 'other';
