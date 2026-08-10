@@ -194,8 +194,14 @@ export async function setSyncState(folder, patch) {
 /**
  * 아직 AI 분석(유료)이 안 된 메일 — 로컬 1차 분석만 된 것 포함.
  * 광고·자동발송은 애초에 대상이 아니다.
+ *
+ * 기본은 **최신 메일부터**다. 오래된 것부터 처리하면 밀린 물량을 다 씹을 때까지
+ * 오늘 온 메일이 요약되지 않는다 (1,600통 대기 · 하루 20통이면 80일).
+ * 매일 아침 브리핑은 어제·오늘 온 메일이 담겨야 쓸모가 있다.
+ *
+ * 밀린 과거분을 채울 때만 oldestFirst 로 뒤에서부터 훑는다.
  */
-export async function findUnanalyzed(limit = 20, extraQuery = {}) {
+export async function findUnanalyzed(limit = 20, extraQuery = {}, { oldestFirst = false } = {}) {
   const mails = await collections.mails();
   return mails
     .find({
@@ -203,7 +209,7 @@ export async function findUnanalyzed(limit = 20, extraQuery = {}) {
       classification: { $nin: ['ad', 'system'] },
       ...extraQuery,
     })
-    .sort({ receivedAt: 1 })
+    .sort(oldestFirst ? { date: 1 } : { date: -1 })
     .limit(limit)
     .toArray();
 }
