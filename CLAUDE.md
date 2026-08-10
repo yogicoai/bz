@@ -74,6 +74,40 @@ node scripts/learn-folders.js 250   # 폴더당 250통 수집 → 학습 → 미
 
 ---
 
+## 스레드 묶기
+
+실무 메일은 `Re: Re: RE: SV:` 가 스무 번 붙으며 같은 건이 계속 새 행으로 보인다.
+대표가 보고 싶은 것은 "이 건이 어디까지 왔나"이므로 **대화 단위로 한 줄**만 보여주고
+그 안에 몇 통이 오갔는지를 배지로 표시한다 (1,758통 → 대화 단위로 접힘).
+
+묶는 기준은 **정규화한 제목**이다 (`src/lib/mail/thread.js`).
+References/In-Reply-To 헤더가 더 정확하지만 폴더별로 나눠 수집하다 보면
+대화의 시작 메일이 없는 경우가 많아 헤더만으로는 조각이 난다.
+다만 제목만으로는 서로 다른 거래처의 같은 제목이 섞이므로 **거래처를 함께 묶는다**.
+
+스레드 키는 거래처가 정해진 **뒤에** 계산한다 (`ingest.js`). 순서가 바뀌면
+같은 대화가 거래처별로 쪼개진다.
+
+기한은 **아직 지나지 않은 것 중 가장 이른 것**을 쓴다. 스레드 최소값을 그냥 쓰면
+몇 달 전 끝난 기한이 계속 D-day 로 뜨고, 최신 메일만 보면 두 통 전의 기한을 놓친다.
+
+---
+
+## 인용부 제거
+
+답장에는 이전 대화가 통째로 딸려온다. 이것을 그대로 분석하면
+인용문의 영문 헤더 때문에 한국어 회신이 영어로 잡히고,
+몇 달 전 인용문의 물음표·옛 날짜가 이번 질문·기한으로 오인된다.
+
+`src/lib/mail/quoted.js` 의 `stripQuoted()` 를 언어 감지·답변필요·기한 판정
+앞에 두어 이를 막는다. 한국어·영어·일본어·북유럽 메일 클라이언트의 인용 표지를 인식한다.
+
+**언어 감지**는 URL·메일주소를 걷어내고 로마자를 단어 수로 환산해 비교한다.
+낱글자끼리 세면 이카운트가 붙이는 수신확인 링크(로마자 200자 이상)와 영문 서명 때문에
+한국어 메일이 영어로 넘어간다.
+
+---
+
 ## 첨부파일
 
 파일 내용은 **DB 에 저장하지 않는다.** 수집 시 IMAP 파트 번호(`attachments[].partId`)만 남기고,
@@ -113,9 +147,11 @@ DB·CSS 는 영문 값, 화면은 한글 라벨. 소스: `src/lib/labels.js`
 ## 컬렉션 (DB `emaildata`)
 
 - **mails** — 메일 1통. `messageId` 유니크로 재수집 중복 방지.
-  주요 필드: `raw{text,html}` `translation` `analysis` `classification` `status` `drafts[]` `doc`
+  주요 필드: `raw{text,html}` `translation` `analysis` `classification` `status` `drafts[]` `doc` `threadKey` `group`
 - **sync_state** — 폴더별 `lastUid` (증분 수집 기준점)
 - **settings** — 싱글톤 `_id:'main'`. IMAP/SMTP/AI 설정 + `appPasswordHash`(scrypt)
+  `imapFolders` 에 수집 대상 폴더를 배열로 둔다. **비어 있으면 INBOX 만 수집**되어
+  거래처 폴더로 들어온 새 메일을 놓친다.
 
 ---
 
@@ -130,8 +166,19 @@ npm run ingest                 # 1회 수집 (dev 서버 필요)
 npm run ingest -- --recent 10  # 최근 10통 강제 수집 (최초 세팅용)
 npm run poll                   # 상시 수집 루프 (상시 서버용)
 
+node scripts/learn-folders.js 600   # 거래처 폴더 깊게 수집 (폴더당 최대 600통)
+node scripts/reanalyze-local.js     # 기존 메일 로컬 재분석 (무과금)
+
 node scripts/seed-demo.js          # 샘플 제안 메일 5통 (IMAP 연결 전 화면 확인용)
-node scripts/seed-demo.js --clean  # 샘플만 삭제
+node scripts/seed-demo.js --clean  # 샘플만 삭제  ← 인계 전 반드시 실행
+```
+
+**요약 대상 뽑기** (API 키 없이 대화로 요약할 때):
+```bash
+npm run export-pending -- 20 --days 30                    # 최근 30일 20통
+npm run export-pending -- 20 --group "Osstem Pharma Vussen"  # 특정 거래처
+# _pending.json 을 읽혀 요약을 받고 _summaries.json 으로 저장한 뒤
+npm run apply-summaries
 ```
 
 **일일 브리핑 수동 실행** (평소엔 크론이 자동으로 함):
