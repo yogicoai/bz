@@ -1,0 +1,120 @@
+'use client';
+
+import Link from 'next/link';
+import Image from 'next/image';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import ThemeToggle from './ThemeToggle';
+
+const NAV = [
+  {
+    group: '관리',
+    items: [
+      { href: '/briefing', label: '오늘의 브리핑', icon: '📋', badge: 'briefing' },
+      { href: '/', label: '대시보드', icon: '📊', exact: true },
+      { href: '/mails', label: '전체 메일함', icon: '📬' },
+      { href: '/deadlines', label: '기한·답변', icon: '⏰' },
+    ],
+  },
+  {
+    group: '설정',
+    items: [
+      { href: '/guide', label: '사용 설명서', icon: '📖' },
+      { href: '/settings', label: '설정', icon: '⚙️' },
+      { href: '/account', label: '계정·보안', icon: '🔐' },
+    ],
+  },
+];
+
+export default function Sidebar() {
+  const path = usePathname();
+  const [todayCount, setTodayCount] = useState(null);
+  const [groups, setGroups] = useState([]);
+
+  // 오늘 처리할 제안 건수 — 브리핑 메뉴 배지
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/briefing?countOnly=true')
+      .then((r) => r.json())
+      .then((r) => { if (alive && r.ok) setTodayCount(r.total); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [path]); // 화면 이동 시 갱신 (체크 처리하면 줄어들도록)
+
+  // 거래처 목록 — 메일함의 '내 메일함' 폴더 구조를 그대로 옮겨 놓는다
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/groups')
+      .then((r) => r.json())
+      .then((r) => { if (alive && r.ok) setGroups(r.groups); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [path]);
+
+  return (
+    <aside className="sidebar">
+      <Link href="/" className="brand">
+        {/* 원본이 검은색 단색이라 다크 테마에서만 흰색으로 반전한다 (--logo-filter) */}
+        <Image
+          src="/logo.png"
+          alt="YOGI CORPORATION"
+          width={1500}
+          height={337}
+          priority
+          className="brand-logo"
+        />
+        <small>메일 관리</small>
+      </Link>
+
+      {NAV.map((g, gi) => (
+        <div className="nav-group" key={g.group}>
+          <div className="nav-group-title">{g.group}</div>
+          <nav className="nav">
+            {g.items.map((it) => {
+              const active = it.exact ? path === it.href : path.startsWith(it.href);
+              const badge = it.badge === 'briefing' && todayCount > 0 ? todayCount : null;
+              return (
+                <Link key={it.href} href={it.href} className={active ? 'active' : ''}>
+                  <span className="label">
+                    <span aria-hidden style={{ marginRight: 8 }}>{it.icon}</span>
+                    {it.label}
+                  </span>
+                  {badge && <span className="nav-badge">{badge}</span>}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* '관리' 바로 아래에 거래처 목록을 붙인다 — 웹메일의 '내 메일함' 과 같은 위치감 */}
+          {gi === 0 && groups.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <div className="nav-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>거래처</span>
+                <Link href="/groups" className="muted" style={{ fontSize: 11, fontWeight: 600 }}>전체</Link>
+              </div>
+              <nav className="nav">
+                {groups.map((g2) => {
+                  const href = `/groups/${encodeURIComponent(g2.group)}`;
+                  return (
+                    <Link key={g2.group} href={href}
+                      className={decodeURIComponent(path) === decodeURIComponent(href) ? 'active' : ''}>
+                      <span className="label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span aria-hidden style={{ marginRight: 8 }}>📁</span>
+                        {g2.group}
+                      </span>
+                      <span className="nav-count">{g2.count}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="sidebar-foot">
+        <ThemeToggle />
+      </div>
+    </aside>
+  );
+}

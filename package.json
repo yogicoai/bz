@@ -1,0 +1,32 @@
+{
+  "name": "emaildata",
+  "version": "0.1.0",
+  "private": true,
+  "description": "B2B·영문 수신메일 자동 수집 → 한글 번역·핵심 정리 → 답변/기한 관리 대시보드",
+  "scripts": {
+    "dev": "next dev -p 5900",
+    "build": "next build",
+    "start": "next start -p 5900",
+    "lint": "next lint",
+    "poll": "node scripts/poll.js",
+    "ingest": "node scripts/ingest-once.js",
+    "learn-folders": "node scripts/learn-folders.js",
+    "export-pending": "node scripts/export-pending.js",
+    "apply-summaries": "node scripts/apply-summaries.js",
+    "seed-demo": "node scripts/seed-demo.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "imapflow": "^1.0.191",
+    "mailparser": "^3.7.2",
+    "mongodb": "^6.12.0",
+    "next": "^16.0.0",
+    "nodemailer": "^6.9.16",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^9",
+    "eslint-config-next": "^16.0.0"
+  }
+}

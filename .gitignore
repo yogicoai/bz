@@ -1,0 +1,16 @@
+/node_modules
+/.next/
+/out/
+.env
+.env*.local
+
+# 메일별 정리 파일 (원문 포함 — 커밋 금지)
+/data/mails/
+
+npm-debug.log*
+yarn-error.log*
+.DS_Store
+
+# 요약 작업용 임시 파일 (메일 원문 포함 — 커밋 금지)
+/_pending.json
+/_summaries.json
