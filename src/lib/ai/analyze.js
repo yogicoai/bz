@@ -6,6 +6,26 @@
  * (Opus 5 기준 최소 캐시 512 토큰 — 아래 지시문은 이를 넘긴다)
  */
 import { client, resolveModel, extractJson, truncateBody } from './client';
+import { stripQuoted } from '../mail/quoted.js';
+
+/**
+ * API 로 보낼 본문 — 인용된 이전 대화는 걷어낸다.
+ *
+ * 답장에는 이전 대화가 통째로 딸려온다. 실측하면 평균 18,444자 중 16,683자가
+ * 인용부라 그대로 보내면 입력 토큰의 90%를 지난 대화에 쓴다(통당 106원 → 60원).
+ * 판단해야 할 것은 '이번 메일이 무엇을 요구하는가'이고, 대화 흐름은
+ * 화면의 스레드 묶기로 따로 볼 수 있다.
+ *
+ * 다만 인용부를 걷어내면 내용이 거의 남지 않는 메일이 있다(전달만 한 메일 등).
+ * 그런 경우에는 원문을 쓴다 — 아껴봐야 요약이 비면 의미가 없다.
+ */
+const MIN_BODY = 200;
+
+export function bodyForPrompt(text = '') {
+  const stripped = stripQuoted(text);
+  if (stripped.length >= MIN_BODY || text.length < MIN_BODY) return truncateBody(stripped);
+  return truncateBody(text);
+}
 
 const SCHEMA = {
   type: 'object',
@@ -112,7 +132,7 @@ function buildUserPrompt(mail) {
 [수신거부 헤더] ${mail.headers?.listUnsubscribe ? '있음' : '없음'}
 
 ===== 본문 시작 =====
-${truncateBody(mail.raw?.text || '(본문 없음)')}
+${bodyForPrompt(mail.raw?.text || '') || '(본문 없음)'}
 ===== 본문 끝 =====`;
 }
 

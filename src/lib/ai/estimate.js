@@ -14,6 +14,7 @@ export const PRICING = {
   'claude-sonnet-5':  { in: 3, out: 15, label: 'Sonnet 5',  cacheMin: 1024 },
   'claude-haiku-4-5': { in: 1, out: 5,  label: 'Haiku 4.5', cacheMin: 4096 },
 };
+import { bodyForPrompt } from './analyze';
 const FALLBACK = PRICING['claude-opus-5'];
 
 export const USD_KRW = Number(process.env.USD_KRW) || 1400;
@@ -44,8 +45,9 @@ export function estimateTokens(text = '') {
 export function estimateMailCost(mail, model = 'claude-opus-5', cached = true) {
   const price = PRICING[model] || FALLBACK;
 
-  const bodyText = mail?.raw?.text || '';
-  // 24000자 초과분은 잘라서 보내므로 상한을 둔다 (client.js truncateBody 와 동일)
+  // 실제로 API 에 보내는 본문과 같은 기준으로 잡아야 화면 금액과 청구가 어긋나지 않는다.
+  // analyze.js 는 인용부를 걷어낸 본문을 보낸다(평균 90% 감소).
+  const bodyText = bodyForPrompt(mail?.raw?.text || '');
   const body = bodyText.slice(0, 24000);
   const bodyTokens = estimateTokens(body);
   const metaTokens = estimateTokens(

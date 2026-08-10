@@ -28,13 +28,29 @@ export function extractJson(res) {
   if (res.stop_reason === 'max_tokens') {
     throw new Error('AI 응답이 max_tokens 로 잘렸습니다. 메일이 너무 길거나 max_tokens 를 늘려야 합니다.');
   }
+  // thinking 블록이 앞에 올 수 있으므로 text 블록만 고른다
   const block = res.content.find((b) => b.type === 'text');
   if (!block?.text) throw new Error('AI 응답이 비어 있습니다.');
+
+  const raw = block.text.trim();
   try {
-    return JSON.parse(block.text);
-  } catch {
-    throw new Error('AI 응답 파싱 실패 (JSON 아님).');
+    return JSON.parse(raw);
+  } catch { /* 아래에서 한 번 더 시도 */ }
+
+  // 구조화 출력이 걸리면 순수 JSON 이 오지만, 모델이 코드펜스나 인사말을 덧붙이는
+  // 경우가 있다. 여기서 실패하면 사용자에게는 그냥 '분석 실패'로 보이므로
+  // 가장 바깥 중괄호 구간을 한 번 더 건져낸다.
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = (fenced ? fenced[1] : raw).trim();
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(candidate.slice(start, end + 1));
+    } catch { /* 아래에서 실패 처리 */ }
   }
+
+  throw new Error(`AI 응답 파싱 실패 (JSON 아님). 앞부분: ${raw.slice(0, 120)}`);
 }
 
 /** 긴 본문을 앞·뒤만 남기고 줄인다 — 인사말과 마무리(기한이 자주 여기 있음)를 보존 */
