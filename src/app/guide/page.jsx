@@ -68,9 +68,9 @@ export default function GuidePage() {
               <tr><th>모델</th><th style={{ textAlign: 'right' }}>메일 1건</th><th style={{ textAlign: 'right' }}>월 (하루 5건·22일)</th></tr>
             </thead>
             <tbody>
-              <tr><td>Haiku 4.5 <span className="badge">현재 설정</span></td><td style={{ textAlign: 'right' }}>약 ₩5</td><td style={{ textAlign: 'right' }}><b>약 ₩550</b></td></tr>
-              <tr><td>Sonnet 5</td><td style={{ textAlign: 'right' }}>약 ₩13</td><td style={{ textAlign: 'right' }}>약 ₩1,430</td></tr>
-              <tr><td>Opus 5 (가장 정확)</td><td style={{ textAlign: 'right' }}>약 ₩21</td><td style={{ textAlign: 'right' }}>약 ₩2,310</td></tr>
+              <tr><td>Haiku 4.5 <span className="badge">현재 설정</span></td><td style={{ textAlign: 'right' }}>약 ₩9</td><td style={{ textAlign: 'right' }}><b>약 ₩990</b></td></tr>
+              <tr><td>Sonnet 5</td><td style={{ textAlign: 'right' }}>약 ₩27</td><td style={{ textAlign: 'right' }}>약 ₩2,970</td></tr>
+              <tr><td>Opus 5 (가장 정확)</td><td style={{ textAlign: 'right' }}>약 ₩45</td><td style={{ textAlign: 'right' }}>약 ₩4,950</td></tr>
             </tbody>
           </table>
         </div>
@@ -79,6 +79,8 @@ export default function GuidePage() {
           <li>광고 메일은 요약하지 않으므로 아무리 많이 와도 비용이 늘지 않습니다.</li>
           <li>이미 요약한 메일은 다시 요약하지 않습니다.</li>
           <li>하루 요약 상한(기본 20건)이 있어 갑자기 몰려도 비용이 튀지 않습니다.</li>
+          <li><b>우리가 보낸 메일은 요약하지 않습니다.</b> 우리가 쓴 것이라 다시 읽을 필요가 없고, 전체 메일의 3분의 1을 차지해 상한을 잠식하기 때문입니다.</li>
+          <li>답장에 딸려온 <b>이전 대화는 빼고</b> AI에 보냅니다. 실측하면 본문의 90%가 인용문이라 그대로 보내면 비용이 두 배가 됩니다.</li>
         </ul>
       </Section>
 
@@ -109,6 +111,31 @@ export default function GuidePage() {
         </ul>
         <p className="muted" style={{ marginBottom: 0 }}>
           Gmail·네이버 같은 개인 메일 주소는 회사를 특정할 수 없어 도메인만으로는 판단하지 않습니다.
+        </p>
+      </Section>
+
+      <Section title="같은 대화는 한 줄로 묶입니다">
+        <p style={{ marginTop: 0 }}>
+          실무 메일은 <code>Re: Re: RE: SV:</code> 가 스무 번씩 붙으며 같은 건이 계속 새 줄로 보입니다.
+          메일함에서 <b>대화 묶기</b>를 켜두면 <b>한 대화당 한 줄</b>만 보이고, 제목 옆 숫자가 그 대화에서 오간 통수입니다.
+        </p>
+        <ul style={{ paddingLeft: 20 }}>
+          <li>줄을 누르면 상세 화면 아래에 <b>그 대화 전체가 시간순으로</b> 펼쳐집니다.</li>
+          <li>기한은 <b>아직 지나지 않은 것 중 가장 이른 것</b>을 보여줍니다. 몇 달 전 끝난 기한이 계속 뜨지 않습니다.</li>
+          <li>제목이 같아도 <b>거래처가 다르면 다른 대화</b>로 봅니다.</li>
+        </ul>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          한 통씩 보고 싶으면 <b>대화 묶기</b>를 끄면 됩니다.
+        </p>
+      </Section>
+
+      <Section title="사이드바 거래처 옆 숫자">
+        <p style={{ marginTop: 0 }}>
+          왼쪽 메뉴의 거래처 옆 숫자는 <b>아직 손대지 않은 메일 수</b>입니다. 브리핑에서 체크하거나 상태를 바꾸면 줄어듭니다.
+        </p>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          다 확인한 거래처는 숫자가 흐리게 바뀌고 그때부터는 <b>전체 통수</b>를 보여줍니다.
+          우리가 보낸 메일과 광고는 처리할 대상이 아니므로 세지 않습니다.
         </p>
       </Section>
 
