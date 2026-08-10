@@ -39,16 +39,19 @@ export default async function DashboardPage() {
       <TodayAlert />
 
       <div className="cards" style={{ marginBottom: 18 }}>
-        <Kpi label="답변 필요" value={k.needsReply} tone={k.needsReply ? 'bad' : null}
-          sub="확인중·신규 상태에서 회신 대기" href="/deadlines" />
+        <Kpi label="답변 필요" value={k.needsReplyRecent ?? k.needsReply} tone={k.needsReplyRecent ? 'bad' : null}
+          sub={`최근 30일 · 전체 ${(k.needsReply || 0).toLocaleString()}건`} href="/deadlines" />
         <Kpi label="기한 지남" value={k.overdue} tone={k.overdue ? 'bad' : null}
-          sub="기한이 이미 지난 미처리 건" href="/deadlines" />
+          sub={`아직 대응 가능 (30일 이내) · 전체 ${(k.overdueAll || 0).toLocaleString()}건`} href="/deadlines" />
         <Kpi label="기한 임박 (7일)" value={k.dueSoon} tone={k.dueSoon ? 'warn' : null}
           sub="일주일 내 마감" href="/deadlines" />
-        <Kpi label="신규 미확인" value={k.unread} sub="광고·자동발송 제외" href="/mails?status=new" />
+        <Kpi label="신규 미확인" value={k.unreadRecent ?? k.unread}
+          sub={`최근 30일 · 전체 ${(k.unread || 0).toLocaleString()}건`} href="/mails?status=new" />
         <Kpi label="이번 주 답변완료" value={k.repliedThisWeek} tone={k.repliedThisWeek ? 'good' : null} sub="최근 7일" />
-        <Kpi label="분석 대기" value={k.pendingAnalysis}
-          sub={k.pendingAnalysis ? 'AI 분석이 남아 있습니다' : '모두 분석됨'} href="/mails" />
+        <Kpi label="분석 대기" value={k.pendingAnalysisRecent ?? k.pendingAnalysis}
+          sub={k.pendingAnalysisRecent
+            ? `최근 30일 · 전체 ${(k.pendingAnalysis || 0).toLocaleString()}건`
+            : `최근 30일은 모두 완료 · 전체 ${(k.pendingAnalysis || 0).toLocaleString()}건 남음`} href="/mails" />
       </div>
 
       <Panel title="답변이 필요한 메일" count={d.replyList.length} more="/deadlines">

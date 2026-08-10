@@ -3,8 +3,11 @@
  */
 import { collections } from './db';
 
-const AI_TARGET = { classification: { $nin: ['ad', 'system', 'newsletter'] } };
-const OPEN = { status: { $in: ['new', 'reviewing'] } };
+// 우리가 보낸 메일은 어떤 집계에도 들어가지 않는다.
+// '답변 필요 1,200건' 의 3분의 1이 우리가 쓴 메일이면 숫자가 의미를 잃는다.
+const INBOUND = { direction: { $ne: 'out' } };
+const AI_TARGET = { classification: { $nin: ['ad', 'system', 'newsletter'] }, ...INBOUND };
+const OPEN = { status: { $in: ['new', 'reviewing'] }, ...INBOUND };
 
 export async function getDashboard() {
   try {
@@ -13,19 +16,38 @@ export async function getDashboard() {
     const weekAgo = new Date(now.getTime() - 7 * 86400000);
     const in7 = new Date(now.getTime() + 7 * 86400000);
 
-    const [total, unread, needsReply, dueSoon, overdue, repliedThisWeek, pendingAnalysis] =
+    // 누적 숫자만 크게 보여주면 1년 반치가 쌓여 '밀린 일 1,200건'처럼 읽힌다.
+    // 지금 손댈 수 있는 최근 30일을 앞에 세우고 누적은 부가 정보로 둔다.
+    const monthAgo = new Date(now.getTime() - 30 * 86400000);
+    const RECENT = { date: { $gte: monthAgo } };
+
+    const [
+      total, unread, needsReply, dueSoon, overdue, repliedThisWeek, pendingAnalysis,
+      needsReplyRecent, unreadRecent, pendingAnalysisRecent, overdueAll,
+    ] =
       await Promise.all([
         mails.countDocuments({}),
         mails.countDocuments({ status: 'new', ...AI_TARGET }),
         mails.countDocuments({ 'analysis.needsReply': true, ...OPEN }),
         mails.countDocuments({ 'analysis.deadline': { $ne: null, $gte: now, $lte: in7 }, ...OPEN }),
-        mails.countDocuments({ 'analysis.deadline': { $ne: null, $lt: now }, ...OPEN }),
+        // 기한 화면과 같은 기준 — 아직 대응이 의미 있는 30일 이내만 센다.
+        // 1년 전 기한까지 합치면 숫자가 커지기만 하고 행동으로 이어지지 않는다.
+        mails.countDocuments({
+          'analysis.deadline': { $ne: null, $gte: monthAgo, $lt: now }, ...OPEN,
+        }),
         mails.countDocuments({ status: 'replied', repliedAt: { $gte: weekAgo } }),
         // 로컬 1차 분석만 된 것도 "AI 분석 대기"로 센다
         mails.countDocuments({
           $or: [{ analysis: null }, { 'analysis.method': { $ne: 'ai' } }],
           ...AI_TARGET,
         }),
+        mails.countDocuments({ 'analysis.needsReply': true, ...OPEN, ...RECENT }),
+        mails.countDocuments({ status: 'new', ...AI_TARGET, ...RECENT }),
+        mails.countDocuments({
+          $or: [{ analysis: null }, { 'analysis.method': { $ne: 'ai' } }],
+          ...AI_TARGET, ...RECENT,
+        }),
+        mails.countDocuments({ 'analysis.deadline': { $ne: null, $lt: now }, ...OPEN }),
       ]);
 
     const proj = {
@@ -51,7 +73,10 @@ export async function getDashboard() {
 
     return {
       connected: true,
-      kpi: { total, unread, needsReply, dueSoon, overdue, repliedThisWeek, pendingAnalysis },
+      kpi: {
+        total, unread, needsReply, dueSoon, overdue, repliedThisWeek, pendingAnalysis,
+        needsReplyRecent, unreadRecent, pendingAnalysisRecent, overdueAll,
+      },
       replyList: ser(replyList),
       deadlineList: ser(deadlineList),
       recent: ser(recent),
