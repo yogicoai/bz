@@ -34,6 +34,128 @@ export default function GuidePage() {
         </Step>
       </Section>
 
+      <Section title="화면에 붙는 표시, 이렇게 읽으시면 됩니다">
+        <p style={{ marginTop: 0 }}>
+          메일 옆에 작은 딱지들이 붙습니다. <b>이것만 알면 목록을 훑는 속도가 완전히 달라집니다.</b>
+        </p>
+
+        <Legend title="기한 — 언제까지인지">
+          <LegendRow badge={<span className="badge overdue">D+5</span>}>
+            기한이 <b>5일 지났습니다.</b> 플러스(+)는 이미 넘겼다는 뜻입니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge high">D-DAY</span>}>
+            <b>오늘이 기한</b>입니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge high">D-2</span>}>
+            <b>이틀 남았습니다.</b> 마이너스(−)는 아직 남았다는 뜻입니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge mid">D-5</span>}>
+            닷새 남았습니다. 노란색은 이번 주 안입니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge low">D-20</span>}>
+            여유가 있습니다. 회색은 급하지 않다는 뜻입니다.
+          </LegendRow>
+        </Legend>
+
+        <Legend title="대응 — 무엇을 해야 하는지">
+          <LegendRow badge={<span className="badge reply">답변 필요</span>}>
+            상대가 <b>회신을 기다리고 있습니다.</b> 질문이 있거나 자료·견적을 요청한 메일입니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge high">긴급도 높음</span>}>
+            기한이 사흘 안이거나, 늦으면 거래에 손해가 나는 건입니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge mid">긴급도 보통</span>}>
+            답은 해야 하지만 여유가 있습니다.
+          </LegendRow>
+        </Legend>
+
+        <Legend title="분류 — 어떤 성격의 메일인지">
+          <LegendRow badge={<span className="badge b2b">B2B 거래</span>}>
+            이미 거래 중이거나 구체적인 거래 이야기가 오가는 메일입니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge inquiry">문의·견적</span>}>
+            아직 거래 전이지만 <b>우리 제품을 사려는</b> 실제 문의입니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge ad">광고</span>}>
+            <b>우리에게 무언가를 팔려는</b> 메일입니다. 기본으로 숨겨집니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge system">자동발송</span>}>
+            읽음 확인, 부재중 자동응답, 결제 알림 같은 기계가 보낸 메일입니다.
+          </LegendRow>
+        </Legend>
+
+        <Legend title="그 밖에">
+          <LegendRow badge={<span className="badge">3</span>}>
+            제목 옆의 숫자는 <b>그 대화에서 오간 메일 통수</b>입니다. 눌러서 들어가면 전체 흐름이 보입니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge b2b">Dangaard Beauty</span>}>
+            자동으로 붙은 <b>거래처 이름</b>입니다. 틀렸으면 상세 화면에서 바꿀 수 있습니다.
+          </LegendRow>
+          <LegendRow badge={<span className="badge new">신규</span>}>
+            아직 손대지 않은 메일입니다. 체크하거나 답장하면 바뀝니다.
+          </LegendRow>
+        </Legend>
+      </Section>
+
+      <Section title="브리핑 한 줄은 이렇게 생겼습니다">
+        <p style={{ marginTop: 0 }}>
+          아래는 실제 화면에서 보게 될 모양입니다. <b>메일을 열지 않아도 판단이 되도록</b> 만들어 두었습니다.
+        </p>
+        <div className="card" style={{ background: 'var(--panel-2)', marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <input type="checkbox" readOnly style={{ marginTop: 4 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="row" style={{ gap: 6, marginBottom: 4 }}>
+                <span className="badge b2b">Distribution Group Turkey</span>
+                <span className="badge overdue">D+1</span>
+                <span className="badge reply">답변 필요</span>
+              </div>
+              <div style={{ fontWeight: 600, marginBottom: 2 }}>
+                터키 독점유통계약서 — 실물 서명 vs 전자 서명 문의
+              </div>
+              <div className="muted" style={{ fontSize: 12 }}>Okan Can &lt;okan@distributiongroup.com.tr&gt;</div>
+              <div style={{ fontSize: 13, marginTop: 6 }}>
+                → 서명 방식을 즉시 회신. 상대가 첫 발주를 대기 중이며 3일 전부터 재촉하고 있음
+              </div>
+            </div>
+          </div>
+        </div>
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
+          <li><b>맨 앞 체크박스</b> — 처리했으면 여기를 누릅니다. 목록에서 빠지고 보관됩니다.</li>
+          <li><b>첫 줄의 딱지들</b> — 거래처 / 기한 / 답변 필요 여부</li>
+          <li><b>굵은 글씨</b> — 이 메일이 무엇에 관한 것인지 한 줄 요약</li>
+          <li><b>화살표(→) 줄</b> — 다음에 무엇을 하면 되는지</li>
+        </ul>
+      </Section>
+
+      <Section title="처음 여시는 날, 이 순서로 해보세요">
+        <Step n="1" title="사이드바에서 '오늘의 브리핑'을 누릅니다">
+          왼쪽 메뉴 맨 위입니다. 옆의 숫자는 <b>오늘 확인할 건수</b>입니다.
+        </Step>
+        <Step n="2" title="아무것도 없으면 기간을 '최근 7일'로 바꿔보세요">
+          화면 위쪽에 <b>하루치 · 최근 3일 · 최근 7일</b> 버튼이 있습니다. 주말이 끼면 하루치는 비어 있을 수 있습니다.
+        </Step>
+        <Step n="3" title="위에서 세 건만 읽어보세요">
+          급한 순서로 정렬돼 있습니다. 딱지와 요약만 봐도 무슨 일인지 파악되는지 확인해 보세요.
+        </Step>
+        <Step n="4" title="한 건을 눌러 상세를 열어보세요">
+          영문 메일이면 <b>왼쪽 원문 / 오른쪽 한글</b>이 나란히 보입니다. 아래에 핵심 정리와 권장 조치가 있습니다.
+        </Step>
+        <Step n="5" title="사이드바에서 거래처를 하나 눌러보세요">
+          <b>Osstem Pharma Vussen</b> 을 추천드립니다. 1월 첫 만남부터 지금까지의 흐름이 전부 정리돼 있습니다.
+        </Step>
+      </Section>
+
+      <Section title="이건 걱정하지 않으셔도 됩니다">
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
+          <li><b>메일이 지워지지 않습니다.</b> 이 도구는 읽기만 합니다. 원래 메일함은 그대로입니다.</li>
+          <li><b>광고로 잘못 걸려도 사라지지 않습니다.</b> 메일함에서 <b>광고 숨김</b>을 끄면 찾을 수 있고, 분류를 바꾸면 다시는 광고로 안 갑니다.</li>
+          <li><b>체크는 삭제가 아닙니다.</b> 보관 처리라 언제든 다시 볼 수 있습니다.</li>
+          <li><b>답장은 확인 없이 나가지 않습니다.</b> 보내기 전에 수신자·제목·본문을 마지막으로 보여주는 창이 뜹니다.</li>
+          <li><b>버튼을 누르기 전에 금액이 먼저 보입니다.</b> 모르고 돈이 나가는 일은 없습니다.</li>
+        </ul>
+      </Section>
+
       <Section title="화면 안내">
         <Row name="오늘의 브리핑" href="/briefing">
           하루치 제안 메일 목록. <b>가장 자주 쓰게 될 화면</b>입니다. 날짜를 옮기거나 최근 3일·7일치를 한 번에 볼 수 있습니다.
@@ -210,6 +332,24 @@ export default function GuidePage() {
         </p>
       </div>
     </>
+  );
+}
+
+function Legend({ title, children }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>
+    </div>
+  );
+}
+
+function LegendRow({ badge, children }) {
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+      <span style={{ flex: '0 0 auto', minWidth: 96 }}>{badge}</span>
+      <span style={{ fontSize: 13 }}>{children}</span>
+    </div>
   );
 }
 

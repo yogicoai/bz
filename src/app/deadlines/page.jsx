@@ -19,7 +19,7 @@ export default async function DeadlinesPage() {
     );
   }
 
-  const total = d.overdue.length + d.soon.length + d.later.length;
+  const total = d.overdue.length + (d.longOverdue?.length || 0) + d.soon.length + d.later.length;
 
   return (
     <>
@@ -29,10 +29,10 @@ export default async function DeadlinesPage() {
       </p>
 
       <Group
-        title="기한 지남"
+        title="기한 지남 — 아직 대응할 수 있는 건 (30일 이내)"
         tone="bad"
         items={d.overdue}
-        empty="기한을 넘긴 건이 없습니다. 👍"
+        empty="최근 한 달 안에 기한을 넘긴 건이 없습니다. 👍"
       />
       <Group
         title="이번 주 마감 (7일 이내)"
@@ -45,6 +45,22 @@ export default async function DeadlinesPage() {
         items={d.later}
         empty="예정된 기한이 없습니다."
       />
+      {/* 오래 지난 기한은 접어 둔다. 목록에 섞으면 D+500 이 맨 위를 차지해
+          정작 지금 손대야 할 건이 묻힌다. 기록으로는 남기되 기본은 숨긴다. */}
+      {(d.longOverdue?.length || 0) > 0 && (
+        <details className="card" style={{ marginBottom: 14 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+            한 달 넘게 지난 기한 {d.longOverdue.length}건
+            <span className="muted" style={{ fontWeight: 400, fontSize: 12, marginLeft: 8 }}>
+              — 지금 대응하기엔 늦은 건입니다. 확인만 하고 넘기셔도 됩니다.
+            </span>
+          </summary>
+          <div style={{ marginTop: 12 }}>
+            {d.longOverdue.map((m) => <MailRow key={m._id} mail={m} />)}
+          </div>
+        </details>
+      )}
+
       <Group
         title="기한은 없지만 답변이 필요한 메일"
         items={d.noDeadlineReply}

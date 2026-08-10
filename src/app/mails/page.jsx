@@ -105,7 +105,10 @@ function MailsInner() {
         <div>
           <h1 className="page-title">메일함</h1>
           <p className="page-sub">
-            {f.threaded ? `대화 ${count.toLocaleString()}건` : `총 ${count.toLocaleString()}통`}
+            {/* 데이터가 오기 전에 '0건'을 보여주면 비어 있는 것처럼 읽힌다 */}
+            {busy && !items.length
+              ? '불러오는 중…'
+              : (f.threaded ? `대화 ${count.toLocaleString()}건` : `총 ${count.toLocaleString()}통`)}
           </p>
         </div>
         <div className="row">

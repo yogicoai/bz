@@ -77,9 +77,16 @@ export async function getDeadlines() {
     };
     const base = { 'analysis.deadline': { $ne: null }, ...OPEN };
 
-    const [overdue, soon, later, noDeadlineReply] = await Promise.all([
-      mails.find({ ...base, 'analysis.deadline': { $ne: null, $lt: now } }, { projection: proj })
+    // 기한 지남을 한 덩어리로 보여주면 1년 전 기한(D+500)이 맨 위를 차지해
+    // "지금 손대야 할 것"이 묻힌다. 아직 대응이 의미 있는 30일 이내와
+    // 참고용으로만 남는 그 이전을 나눈다.
+    const monthAgo = new Date(now.getTime() - 30 * 86400000);
+
+    const [overdue, longOverdue, soon, later, noDeadlineReply] = await Promise.all([
+      mails.find({ ...base, 'analysis.deadline': { $gte: monthAgo, $lt: now } }, { projection: proj })
         .sort({ 'analysis.deadline': 1 }).toArray(),
+      mails.find({ ...base, 'analysis.deadline': { $lt: monthAgo } }, { projection: proj })
+        .sort({ 'analysis.deadline': -1 }).toArray(),
       mails.find({ ...base, 'analysis.deadline': { $gte: now, $lte: in7 } }, { projection: proj })
         .sort({ 'analysis.deadline': 1 }).toArray(),
       mails.find({ ...base, 'analysis.deadline': { $gt: in7 } }, { projection: proj })
@@ -89,7 +96,14 @@ export async function getDeadlines() {
     ]);
 
     const ser = (arr) => arr.map((m) => ({ ...m, _id: String(m._id) }));
-    return { connected: true, overdue: ser(overdue), soon: ser(soon), later: ser(later), noDeadlineReply: ser(noDeadlineReply) };
+    return {
+      connected: true,
+      overdue: ser(overdue),
+      longOverdue: ser(longOverdue),
+      soon: ser(soon),
+      later: ser(later),
+      noDeadlineReply: ser(noDeadlineReply),
+    };
   } catch (e) {
     return { connected: false, error: String(e?.message || e) };
   }
