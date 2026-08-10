@@ -48,16 +48,22 @@ export async function GET(req) {
     }
 
     // 2) 제안 메일만 요약. 하루 상한을 두어 비용이 튀지 않게 한다.
-    const cap = Math.min(Number(sp.get('max')) || Number(settings.dailyAnalyzeLimit) || 20, 50);
-    const pending = await findUnanalyzed(cap, { classification: { $in: PROPOSAL_CLASSES } });
+    //    키가 없으면 아예 시도하지 않는다. 매일 20통씩 같은 오류를 쌓아 봐야
+    //    진짜 문제가 생겼을 때 로그에서 묻힐 뿐이다. 수집과 브리핑은 그대로 돈다.
+    if (!process.env.ANTHROPIC_API_KEY) {
+      result.analyze = { skipped: 'ANTHROPIC_API_KEY 미설정 — 요약 없이 진행합니다', target: 0, done: 0, errors: [] };
+    } else {
+      const cap = Math.min(Number(sp.get('max')) || Number(settings.dailyAnalyzeLimit) || 20, 50);
+      const pending = await findUnanalyzed(cap, { classification: { $in: PROPOSAL_CLASSES } });
 
-    result.analyze = { target: pending.length, done: 0, errors: [] };
-    for (const doc of pending) {
-      try {
-        await analyzeAndSave(doc, settings);
-        result.analyze.done++;
-      } catch (e) {
-        result.analyze.errors.push({ messageId: doc.messageId, error: String(e?.message || e) });
+      result.analyze = { target: pending.length, done: 0, errors: [] };
+      for (const doc of pending) {
+        try {
+          await analyzeAndSave(doc, settings);
+          result.analyze.done++;
+        } catch (e) {
+          result.analyze.errors.push({ messageId: doc.messageId, error: String(e?.message || e) });
+        }
       }
     }
 

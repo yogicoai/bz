@@ -7,6 +7,7 @@
  */
 import { getSettings } from '@/lib/settings';
 import { fetchNew, fetchRecent } from './imap';
+import { threadKey } from './thread.js';
 import { parseMessage } from './parse';
 import { ruleClassify, shouldAnalyze } from './classify';
 import { localAnalyze } from './localAnalyze';
@@ -89,6 +90,10 @@ async function ingestFolder(settings, folder, { limit, recent, learned, knownGro
           stat.grouped++;
         }
       }
+
+      // 스레드 키는 거래처가 정해진 뒤에 만든다.
+      // 같은 제목이라도 거래처가 다르면 다른 대화이므로 순서가 중요하다.
+      parsed.threadKey = threadKey(parsed);
 
       // 규칙 필터 — AI 비용이 드는 분석 전에 광고·자동발송을 걸러낸다
       const rule = ruleClassify(parsed, settings);

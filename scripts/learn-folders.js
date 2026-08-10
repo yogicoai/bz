@@ -90,7 +90,12 @@ const secs = (ms) => `${(ms / 1000).toFixed(1)}s`;
       const s = r.stats;
       total += s.fetched;
       inserted += s.inserted;
-      console.log(`조회 ${pad(s.fetched, 5)} 신규 ${pad(s.inserted, 5)} ${secs(Date.now() - started)}`);
+      // 실패 건수를 반드시 같이 찍는다. 조회·신규만 보면 전량 실패해도
+      // "이미 다 있음"으로 읽혀 문제가 드러나지 않는다(실제로 그렇게 가려졌다).
+      const failed = s.errors?.length || 0;
+      const mark = failed ? `  ⚠ 실패 ${failed}` : '';
+      console.log(`조회 ${pad(s.fetched, 5)} 신규 ${pad(s.inserted, 5)} ${secs(Date.now() - started)}${mark}`);
+      if (failed) console.log(`      ${s.errors[0].error}`);
     } catch (e) {
       console.log(`✗ ${String(e.message).slice(0, 40)}`);
     }

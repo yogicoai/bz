@@ -4,7 +4,6 @@
  */
 import { simpleParser } from 'mailparser';
 import { stripQuoted } from './quoted.js';
-import { threadKey } from './thread.js';
 
 /** HTML 만 있는 메일을 위한 최소 텍스트 추출 */
 function htmlToText(html) {
@@ -110,6 +109,10 @@ export async function parseMessage(source, { uid, folder, internalDate } = {}) {
       inline: a.contentDisposition === 'inline',
     })),
 
-    lang: detectLang(`${p.subject || ''}\n${text}`),
+    // 인용된 이전 대화는 빼고 판정한다. 답장에 통째로 딸려온 영문 원문 때문에
+    // 한국어 회신이 영어로 잡히는 것을 막는다.
+    lang: detectLang(`${p.subject || ''}\n${stripQuoted(text)}`),
   };
+
+  return doc;
 }
