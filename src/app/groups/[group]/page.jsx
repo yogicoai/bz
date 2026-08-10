@@ -7,6 +7,17 @@ import {
   ddayLabel, ddayTone, urgencyLabel,
 } from '@/lib/labels';
 
+/** 지금 어떤 기간을 보고 있는지 한 줄로 */
+function periodLabel(f) {
+  if (f.from && f.to) return `${f.from} ~ ${f.to}`;
+  if (f.from) return `${f.from} 이후`;
+  if (f.to) return `${f.to} 이전`;
+  if (f.days === '30') return '최근 한 달';
+  if (f.days === '90') return '최근 3개월';
+  if (f.days === '365') return '최근 1년';
+  return '전체 기간';
+}
+
 const fmtDay = (d) =>
   d ? new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit' }) : '-';
 
@@ -20,13 +31,21 @@ export default function GroupPage({ params }) {
   const [err, setErr] = useState('');
   // 거래처 한 곳에 500통이 넘게 쌓인 곳도 있다. 전부 불러오면 화면이 무거울 뿐
   // 아니라 지금 볼 것을 찾기가 어렵다. 기본은 최근 한 달이고 필요할 때 넓힌다.
-  const [f, setF] = useState({ status: '', needsReply: '', q: '', hideAds: true, days: '30' });
+  const [f, setF] = useState({
+    status: '', needsReply: '', q: '', hideAds: true,
+    days: '30',        // 빠른 선택 (달력을 쓰면 비운다)
+    from: '', to: '',  // 달력으로 직접 지정
+  });
 
   const load = useCallback(async () => {
     setBusy(true); setErr('');
     try {
       const qs = new URLSearchParams({ group, limit: '200' });
-      if (f.days) {
+      // 달력으로 직접 지정한 값이 있으면 그것이 우선한다
+      if (f.from || f.to) {
+        if (f.from) qs.set('since', new Date(`${f.from}T00:00:00+09:00`).toISOString());
+        if (f.to) qs.set('until', new Date(`${f.to}T23:59:59+09:00`).toISOString());
+      } else if (f.days) {
         qs.set('since', new Date(Date.now() - Number(f.days) * 86400000).toISOString());
       }
       if (f.status) qs.set('status', f.status);
@@ -74,7 +93,7 @@ export default function GroupPage({ params }) {
 
       <h1 className="page-title" style={{ marginTop: 8 }}>📁 {group}</h1>
       <p className="page-sub">
-        {f.days ? `최근 ${f.days}일` : '전체 기간'} {count.toLocaleString()}통 · 아직 볼 것 {open.length}통
+        {periodLabel(f)} {count.toLocaleString()}통 · 아직 볼 것 {open.length}통
         {' — '}읽고 판단이 끝난 건은 <b>왼쪽 체크박스</b>를 누르면 검토 완료로 표시됩니다.
       </p>
 
@@ -84,17 +103,24 @@ export default function GroupPage({ params }) {
         <Stat label="아직 볼 것" value={open.length} />
         <Stat label="답변 필요" value={needsReply.length} tone={needsReply.length ? 'bad' : null} />
         <Stat label="기한 있음" value={withDeadline.length} tone={withDeadline.length ? 'warn' : null} />
-        <Stat label={f.days ? `최근 ${f.days}일` : '전체 기간'} value={count} />
+        <Stat label={periodLabel(f)} value={count} />
       </div>
 
       <div className="card toolbar" style={{ marginBottom: 16 }}>
-        <select value={f.days} onChange={(e) => setF({ ...f, days: e.target.value })}
+        <select value={f.from || f.to ? '' : f.days}
+          onChange={(e) => setF({ ...f, days: e.target.value, from: '', to: '' })}
           title="기본은 최근 한 달입니다. 오래된 건을 찾을 때만 넓히세요.">
           <option value="30">최근 한 달</option>
           <option value="90">최근 3개월</option>
           <option value="365">최근 1년</option>
           <option value="">전체 기간</option>
         </select>
+        {/* 달력으로 직접 지정 — 특정 시기의 대화를 찾을 때 */}
+        <input type="date" value={f.from} max={f.to || undefined} style={{ width: 148 }}
+          onChange={(e) => setF({ ...f, from: e.target.value })} title="시작일" />
+        <span className="muted" style={{ fontSize: 13 }}>~</span>
+        <input type="date" value={f.to} min={f.from || undefined} style={{ width: 148 }}
+          onChange={(e) => setF({ ...f, to: e.target.value })} title="종료일" />
         <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
           <option value="">상태 전체</option>
           {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
@@ -104,7 +130,7 @@ export default function GroupPage({ params }) {
           <option value="true">답변 필요만</option>
         </select>
         <div className="grow">
-          <input placeholder="제목·요약 검색" value={f.q}
+          <input placeholder="발신자·제목·요약으로 검색 (예: Okan, 계약, 샘플)" value={f.q}
             onChange={(e) => setF({ ...f, q: e.target.value })} />
         </div>
         <label className={`chip ${f.hideAds ? 'on' : ''}`}>
@@ -112,6 +138,10 @@ export default function GroupPage({ params }) {
             onChange={(e) => setF({ ...f, hideAds: e.target.checked })} />
           광고 숨김
         </label>
+        <button type="button" className="btn secondary sm"
+          onClick={() => setF({ status: '', needsReply: '', q: '', hideAds: true, days: '30', from: '', to: '' })}>
+          초기화
+        </button>
       </div>
 
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>

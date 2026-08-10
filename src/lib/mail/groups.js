@@ -173,6 +173,10 @@ export function suggestGroupByName(mail, groups = []) {
 }
 
 /** 현재 존재하는 그룹 목록 (설정·화면 필터용) */
+/** 사이드바 빨간 숫자가 세는 기간 — 최근 한 달 */
+const FRESH_DAYS = 30;
+const FRESH_SINCE = () => new Date(Date.now() - FRESH_DAYS * 86400000);
+
 export async function listGroups() {
   const mails = await collections.mails();
   const rows = await mails
@@ -183,8 +187,11 @@ export async function listGroups() {
           _id: '$group',
           n: { $sum: 1 },
           last: { $max: '$date' },
-          // 아직 손대지 않은 '받은' 메일 수.
-          // 누적 통수만 보여주면 클릭해서 확인해도 숫자가 그대로라 신호가 되지 않는다.
+          // 최근 한 달 안에 들어온 것 중 아직 손대지 않은 '받은' 메일 수.
+          //
+          // 기간을 두지 않으면 1년 반치가 전부 미확인으로 잡혀 379·330 같은
+          // 숫자가 뜬다. 그러면 "밀린 일이 산더미"로 읽혀 오히려 손을 못 대고,
+          // 매일 늘어나는 몇 건이 그 안에 묻힌다.
           // 우리가 보낸 메일과 광고는 처리할 대상이 아니므로 세지 않는다.
           fresh: {
             $sum: {
@@ -193,6 +200,7 @@ export async function listGroups() {
                   $and: [
                     { $eq: ['$status', 'new'] },
                     { $ne: ['$direction', 'out'] },
+                    { $gte: ['$date', FRESH_SINCE()] },
                     { $not: [{ $in: ['$classification', ['ad', 'system']] }] },
                   ],
                 },
