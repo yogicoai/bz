@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import ReviewDone from './ReviewDone';
 import {
   classificationLabel, deadlineTypeLabel, urgencyLabel, ddayLabel, ddayTone,
 } from '@/lib/labels';
@@ -33,6 +34,9 @@ export default function MailRow({ mail, show = {} }) {
         <td style={{ width: 62 }}>
           {a.urgency ? <span className={`badge ${a.urgency}`}>{urgencyLabel(a.urgency)}</span> : null}
         </td>
+      )}
+      {show.reviewDone !== false && (
+        <td style={{ width: 92 }}><ReviewDone id={mail._id} /></td>
       )}
       {show.deadline && (
         <td style={{ width: 150 }}>

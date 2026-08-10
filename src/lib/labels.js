@@ -22,7 +22,9 @@ export const STATUS_LABELS = {
   new: '신규',
   reviewing: '확인중',
   replied: '답변완료',
-  archived: '보관',
+  // '보관' 은 서류를 치운다는 뜻으로 읽혀 무엇을 한 것인지 알기 어렵다.
+  // 실제 의미는 '읽고 판단이 끝났다' 이므로 그대로 적는다.
+  archived: '검토 완료',
   ignored: '무시',
 };
 export const statusLabel = (v) => STATUS_LABELS[v] || v || '신규';

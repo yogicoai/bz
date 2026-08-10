@@ -55,9 +55,13 @@ export default async function DeadlinesPage() {
               — 지금 대응하기엔 늦은 건입니다. 확인만 하고 넘기셔도 됩니다.
             </span>
           </summary>
-          <div style={{ marginTop: 12 }}>
-            {d.longOverdue.map((m) => <MailRow key={m._id} mail={m} />)}
-          </div>
+          <table style={{ marginTop: 12 }}>
+            <tbody>
+              {d.longOverdue.map((m) => (
+                <MailRow key={m._id} mail={m} show={{ deadline: true }} />
+              ))}
+            </tbody>
+          </table>
         </details>
       )}
 
