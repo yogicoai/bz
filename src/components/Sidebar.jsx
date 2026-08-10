@@ -89,7 +89,7 @@ export default function Sidebar() {
           {gi === 0 && groups.length > 0 && (
             <div style={{ marginTop: 18 }}>
               <div className="nav-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>거래처</span>
+                <span>거래처 <span style={{ fontWeight: 400 }}>· 최근 한 달</span></span>
                 <Link href="/groups" className="muted" style={{ fontSize: 11, fontWeight: 600 }}>전체</Link>
               </div>
               <nav className="nav">
@@ -104,9 +104,21 @@ export default function Sidebar() {
                       </span>
                       {/* 아직 손대지 않은 건이 있으면 그 수를 강조하고, 없으면 누적 통수만 흐리게.
                           누적만 보여주면 확인해도 숫자가 그대로라 '볼 것이 있다'는 신호가 되지 않는다. */}
+                      {/* 숫자는 모두 최근 한 달 기준. 빨간색은 아직 안 본 것,
+                          회색은 최근 한 달에 오간 통수(다 봤거나 볼 것이 없을 때). */}
                       {g2.fresh > 0
-                        ? <span className="nav-badge" title={`확인하지 않은 메일 ${g2.fresh}건 (전체 ${g2.count}통)`}>{g2.fresh}</span>
-                        : <span className="nav-count" title={`전체 ${g2.count}통 · 모두 확인함`}>{g2.count}</span>}
+                        ? (
+                          <span className="nav-badge"
+                            title={`최근 한 달 확인하지 않은 메일 ${g2.fresh}건 · 최근 한 달 ${g2.count}통 · 전체 ${(g2.total ?? g2.count).toLocaleString()}통`}>
+                            {g2.fresh}
+                          </span>
+                        )
+                        : (
+                          <span className="nav-count"
+                            title={`최근 한 달 ${g2.count}통 · 전체 ${(g2.total ?? g2.count).toLocaleString()}통 · 볼 것 없음`}>
+                            {g2.count}
+                          </span>
+                        )}
                     </Link>
                   );
                 })}

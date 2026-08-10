@@ -210,7 +210,11 @@ export async function listGroups() {
       {
         $group: {
           _id: '$group',
-          n: { $sum: 1 },
+          // 사이드바에 보이는 숫자. 누적 통수를 쓰면 577 처럼 커져서
+          // 옆의 빨간 숫자(최근 한 달)와 기준이 어긋나고, 거래처를 눌렀을 때
+          // 나오는 목록(기본 최근 한 달)과도 맞지 않는다. 같은 기간으로 통일한다.
+          n: { $sum: { $cond: [{ $gte: ['$date', FRESH_SINCE()] }, 1, 0] } },
+          total: { $sum: 1 },
           last: { $max: '$date' },
           // 최근 한 달 안에 들어온 것 중 아직 손대지 않은 '받은' 메일 수.
           //
@@ -238,5 +242,8 @@ export async function listGroups() {
       { $sort: { n: -1 } },
     ])
     .toArray();
-  return rows.map((r) => ({ group: r._id, count: r.n, fresh: r.fresh, last: r.last }));
+  // 최근 한 달에 아무것도 없는 거래처도 목록에는 남긴다 (눌러서 과거를 볼 수 있어야 한다)
+  return rows
+    .map((r) => ({ group: r._id, count: r.n, total: r.total, fresh: r.fresh, last: r.last }))
+    .sort((a, b) => b.count - a.count || b.total - a.total);
 }
