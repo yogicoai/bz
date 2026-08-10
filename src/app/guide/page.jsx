@@ -104,7 +104,7 @@ export default function GuidePage() {
         <div className="card" style={{ background: 'var(--panel-2)', marginBottom: 14 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <input type="checkbox" readOnly style={{ marginTop: 4 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
               <div className="row" style={{ gap: 6, marginBottom: 4 }}>
                 <span className="badge b2b">Distribution Group Turkey</span>
                 <span className="badge overdue">D+1</span>

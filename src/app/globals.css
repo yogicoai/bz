@@ -268,7 +268,13 @@ label {
   font-size: 13px; color: var(--text-2); font-weight: 600;
   display: block; margin-bottom: 7px; letter-spacing: -0.02em;
 }
-input[type='checkbox'] { accent-color: var(--accent); cursor: pointer; }
+/* 위의 input 규칙이 width:100% 라 체크박스도 가로를 다 먹는다.
+   그러면 같은 줄의 글자가 한 자씩 밀려 내려가며 레이아웃이 깨진다.
+   폭을 지정한 곳만 멀쩡하고 빠뜨리면 깨지므로 여기서 기본값을 잡아둔다. */
+input[type='checkbox'] {
+  accent-color: var(--accent); cursor: pointer;
+  width: 18px; height: 18px; flex: 0 0 auto; padding: 0;
+}
 input[type='date'] { color-scheme: inherit; }
 
 /* ── 메일 본문 ── */
