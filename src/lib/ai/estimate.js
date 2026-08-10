@@ -15,7 +15,9 @@ export const PRICING = {
   'claude-haiku-4-5': { in: 1, out: 5,  label: 'Haiku 4.5', cacheMin: 4096 },
 };
 import { bodyForPrompt } from './analyze';
-const FALLBACK = PRICING['claude-opus-5'];
+/** 기본 모델과 같아야 한다 — 화면 금액과 실제 청구가 어긋나지 않도록 (client.js DEFAULT_MODEL) */
+const DEFAULT = 'claude-haiku-4-5';
+const FALLBACK = PRICING[DEFAULT];
 
 export const USD_KRW = Number(process.env.USD_KRW) || 1400;
 
@@ -42,7 +44,7 @@ export function estimateTokens(text = '') {
  * @param {string} model
  * @param {boolean} cached 시스템 프롬프트 캐시 히트 가정 여부(두 번째 메일부터 true)
  */
-export function estimateMailCost(mail, model = 'claude-opus-5', cached = true) {
+export function estimateMailCost(mail, model = DEFAULT, cached = true) {
   const price = PRICING[model] || FALLBACK;
 
   // 실제로 API 에 보내는 본문과 같은 기준으로 잡아야 화면 금액과 청구가 어긋나지 않는다.
@@ -81,7 +83,7 @@ export function estimateMailCost(mail, model = 'claude-opus-5', cached = true) {
 }
 
 /** 여러 통 합산 — 첫 통만 캐시 미스로 계산 */
-export function estimateBatchCost(mails = [], model = 'claude-opus-5') {
+export function estimateBatchCost(mails = [], model = DEFAULT) {
   let usd = 0, inputTokens = 0, outputTokens = 0;
   mails.forEach((m, i) => {
     const e = estimateMailCost(m, model, i > 0);
@@ -98,7 +100,7 @@ export function estimateBatchCost(mails = [], model = 'claude-opus-5') {
 }
 
 /** 실제 사용량(analysis.usage) → 실비 */
-export function actualCost(usage, model = 'claude-opus-5') {
+export function actualCost(usage, model = DEFAULT) {
   if (!usage) return null;
   const price = PRICING[model] || FALLBACK;
   const usd =

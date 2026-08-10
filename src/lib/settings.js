@@ -48,7 +48,7 @@ export function defaults() {
     mailFromAddress: process.env.MAIL_FROM_ADDRESS || '',
 
     // AI
-    claudeModel: process.env.CLAUDE_MODEL || 'claude-opus-5',
+    claudeModel: process.env.CLAUDE_MODEL || 'claude-haiku-4-5',
 
     // 규칙 필터 — 광고로 확정할 발신 도메인/제목 키워드
     blockedDomains: [],

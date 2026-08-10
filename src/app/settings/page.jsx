@@ -166,10 +166,10 @@ export default function SettingsPage() {
         desc="수집·광고필터·기한 추출까지는 로컬에서 무료로 처리합니다. 한글 번역과 정밀 요약만 이 모델을 씁니다. 자동 분석을 켜면 수집한 모든 메일에 대해 비용이 발생하니, 평소에는 꺼두고 메일함에서 필요한 것만 골라 돌리는 편이 저렴합니다.">
         <div className="row" style={{ alignItems: 'flex-end' }}>
           <Field label="모델" flex={2}>
-            <select style={inp} value={f.claudeModel || 'claude-opus-5'} onChange={set('claudeModel')}>
-              <option value="claude-opus-5">claude-opus-5 (기본 · 품질 우선)</option>
-              <option value="claude-sonnet-5">claude-sonnet-5 (비용 절감)</option>
-              <option value="claude-haiku-4-5">claude-haiku-4-5 (최저가 · 대량)</option>
+            <select style={inp} value={f.claudeModel || 'claude-haiku-4-5'} onChange={set('claudeModel')}>
+              <option value="claude-haiku-4-5">claude-haiku-4-5 (기본 · 가장 저렴)</option>
+              <option value="claude-sonnet-5">claude-sonnet-5 (중간)</option>
+              <option value="claude-opus-5">claude-opus-5 (최고 품질 · 가장 비쌈)</option>
             </select>
           </Field>
           <Field label="1회 수집 최대 통수">

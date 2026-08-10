@@ -119,7 +119,7 @@ Vercel 기준이다.
   APP_BASE_URL         실제 배포 주소  ← 브리핑 링크에 쓰임
   IMAP_PASS / SMTP_PASS  이카운트 웹메일 비밀번호
   ANTHROPIC_API_KEY    유료 기능을 쓸 때만
-  CLAUDE_MODEL         기본 claude-opus-5 (설정 화면이 우선)
+  CLAUDE_MODEL         기본 claude-haiku-4-5 (설정 화면이 우선)
 
 설정하면 안 되는 것
   APP_AUTH_DISABLED    설정하면 인증이 통째로 꺼진다

@@ -3,7 +3,15 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 
-export const DEFAULT_MODEL = 'claude-opus-5';
+/**
+ * 기본 모델 — Haiku 4.5.
+ *
+ * 이 앱이 AI 에 맡기는 일은 번역과 정형 요약(고정 스키마 JSON)이라
+ * 최상위 모델이 필요한 종류가 아니다. Opus 5 대비 입력 1/5·출력 1/5 단가라
+ * 하루 20통 기준 월 비용이 4천원대에서 1천원 아래로 떨어진다.
+ * 품질이 아쉬우면 설정 화면에서 Sonnet 5 / Opus 5 로 올릴 수 있다.
+ */
+export const DEFAULT_MODEL = 'claude-haiku-4-5';
 
 export function client() {
   if (!process.env.ANTHROPIC_API_KEY) {

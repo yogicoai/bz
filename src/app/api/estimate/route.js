@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { getSettings } from '@/lib/settings';
 import { getMail, findUnanalyzed, countUnanalyzed } from '@/lib/mail/store';
 import { estimateMailCost, estimateBatchCost, PRICING, USD_KRW } from '@/lib/ai/estimate';
+import { DEFAULT_MODEL } from '@/lib/ai/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ export async function GET(req) {
   try {
     const sp = new URL(req.url).searchParams;
     const settings = await getSettings();
-    const model = sp.get('model') || settings.claudeModel || 'claude-opus-5';
+    const model = sp.get('model') || settings.claudeModel || DEFAULT_MODEL;
 
     // 키가 없으면 화면이 동작하지 않을 버튼과 비용을 띄우지 않도록 알려준다
     const apiKeySet = Boolean(process.env.ANTHROPIC_API_KEY);

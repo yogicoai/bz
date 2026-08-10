@@ -42,7 +42,7 @@ Next.js 16 · React 19 · MongoDB · Claude API · IMAP/SMTP · 포트 **5900**
 - `settings.autoAnalyze` 기본값 **false** — 수집만으로는 절대 과금되지 않는다.
 - 메일함 상단과 상세 화면 버튼에 **예상 금액이 항상 먼저 표시**된다.
 - 실제 사용량은 분석 후 `analysis.usage` 에 기록되어 화면에서 확인 가능.
-- 모델은 설정에서 교체 (`claude-opus-5` 기본 → `claude-sonnet-5` / `claude-haiku-4-5`).
+- 모델은 설정에서 교체 (`claude-haiku-4-5` 기본 → `claude-sonnet-5` / `claude-opus-5`).
 
 ---
 
@@ -201,7 +201,7 @@ curl "http://localhost:5900/api/cron/daily?key=<CRON_SECRET>"
 ```bash
 EMAILDATA_URI / MONGODB_URI   # Mongo (DB명 emaildata)
 ANTHROPIC_API_KEY             # AI 분석·답장 초안
-CLAUDE_MODEL=claude-opus-5    # 설정 화면에서도 변경 가능
+CLAUDE_MODEL=claude-haiku-4-5 # 설정 화면 값이 우선. 화면에서도 변경 가능
 APP_SECRET                    # 세션 쿠키 서명 (배포 시 필수)
 CRON_SECRET                   # /api/cron/ingest 인증
 MAIL_DRY_RUN=1                # 1이면 실제 발송 안 함 (개발 기본값)
