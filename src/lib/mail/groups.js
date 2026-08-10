@@ -31,8 +31,32 @@ export const isGroupFolder = (folder) => Boolean(folder) && !NON_GROUP.test(fold
  * 이미 수집된 메일에서 "발신자 → 그룹" 이력을 만든다.
  * 주소가 정확히 일치하는 쪽을 우선하고, 없으면 도메인으로 본다.
  */
+/**
+ * 자사 도메인 — 도메인 기반 추론에서 제외한다.
+ *
+ * 사업개발 폴더 577통 중 대부분이 hoon@yogico.kr 이라 "yogico.kr = 사업개발"로
+ * 학습되고, 그 결과 사내 경영 보고(tim@·fe@)까지 사업개발로 끌려온다.
+ * 우리 회사 도메인은 거래처를 특정하지 못하므로 개인 메일 도메인과 같이 취급한다.
+ * 담당자 개인은 주소 정확 일치로 계속 잡히므로 hoon@ 은 영향이 없다.
+ */
+async function ownDomains() {
+  try {
+    const { getSettings } = await import('@/lib/settings');
+    const s = await getSettings();
+    const out = new Set();
+    for (const u of [s?.imapUser, s?.smtpUser]) {
+      const d = String(u || '').toLowerCase().split('@')[1];
+      if (d) out.add(d);
+    }
+    return out;
+  } catch {
+    return new Set();
+  }
+}
+
 export async function learnSenderGroups() {
   const mails = await collections.mails();
+  const own = await ownDomains();
 
   const rows = await mails
     .aggregate([
@@ -66,7 +90,7 @@ export async function learnSenderGroups() {
     // 실제로 거래처 담당자가 gmail 을 쓰는 경우가 있어(예: 이스라엘 거래처),
     // 담지 않으면 "gmail 에서 온 모든 메일" 이 그 거래처로 몰리는 사고가 난다.
     // 그 담당자 개인은 주소 정확 일치(byAddress)로 계속 잡힌다.
-    if (!FREE_MAIL.has(domain)) push(byDomain, domain);
+    if (!FREE_MAIL.has(domain) && !own.has(domain)) push(byDomain, domain);
   }
 
   // 후보가 여럿이면 건수 → 최근순으로 하나만 남긴다
@@ -76,7 +100,7 @@ export async function learnSenderGroups() {
   const addrMap = new Map([...byAddress].map(([k, v]) => [k, pick(v)]));
   const domainMap = new Map([...byDomain].map(([k, v]) => [k, pick(v)]));
 
-  return { addrMap, domainMap, size: addrMap.size };
+  return { addrMap, domainMap, ownDomains: own, size: addrMap.size };
 }
 
 /**
@@ -91,8 +115,9 @@ export function suggestGroupBySender(mail, learned) {
   if (exact) return { group: exact.group, by: 'address', count: exact.n };
 
   const domain = addr.split('@')[1] || '';
-  // 개인 메일 도메인은 회사를 특정하지 못하므로 도메인 추론에서 제외
+  // 개인 메일 도메인과 자사 도메인은 거래처를 특정하지 못하므로 도메인 추론에서 제외
   if (!domain || FREE_MAIL.has(domain)) return null;
+  if (learned.ownDomains?.has(domain)) return null;
 
   const byDomain = learned.domainMap.get(domain);
   if (byDomain) return { group: byDomain.group, by: 'domain', count: byDomain.n };
