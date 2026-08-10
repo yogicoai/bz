@@ -57,6 +57,21 @@ function MailsInner() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  /** 체크 = 검토 완료. 브리핑·거래처 화면과 같은 동작. */
+  const DONE = ['replied', 'archived', 'ignored'];
+  async function toggle(mail) {
+    const next = DONE.includes(mail.status) ? 'reviewing' : 'archived';
+    setItems((p) => p.map((m) => (m._id === mail._id ? { ...m, status: next } : m)));
+    try {
+      const r = await fetch(`/api/mails/${mail._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      }).then((x) => x.json());
+      if (!r.ok) throw new Error(r.error);
+    } catch (e) { setErr(String(e.message || e)); load(); }
+  }
   useEffect(() => { loadEstimate(); }, [loadEstimate]);
   useEffect(() => {
     fetch('/api/groups').then((r) => r.json()).then((r) => r.ok && setGroups(r.groups)).catch(() => {});
@@ -224,6 +239,7 @@ function MailsInner() {
           <table>
             <thead>
               <tr>
+                <th style={{ width: 34 }} title="읽고 판단이 끝났으면 체크하세요"> </th>
                 <th style={{ width: 60 }}>날짜</th>
                 <th style={{ width: 180 }}>발신</th>
                 <th>제목 / 주제</th>
@@ -236,7 +252,15 @@ function MailsInner() {
             </thead>
             <tbody>
               {items.map((m) => (
-                <tr key={m._id}>
+                <tr key={m._id} style={{ opacity: DONE.includes(m.status) ? 0.45 : 1 }}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={DONE.includes(m.status)}
+                      onChange={() => toggle(m)}
+                      title={DONE.includes(m.status) ? '검토 완료 취소' : '검토 완료로 표시'}
+                    />
+                  </td>
                   <td className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtDate(m.date)}</td>
                   <td style={{ fontSize: 12, wordBreak: 'break-all' }}>
                     <div>{m.from?.name || m.from?.address}</div>
