@@ -207,6 +207,9 @@ export async function findUnanalyzed(limit = 20, extraQuery = {}, { oldestFirst 
     .find({
       $or: [{ analysis: null }, { 'analysis.method': { $ne: 'ai' } }],
       classification: { $nin: ['ad', 'system'] },
+      // 우리가 보낸 메일은 자동 요약 대상이 아니다 — 할 일이 아니라 기록이다.
+      // (direction 이 없는 옛 문서도 통과시켜야 하므로 $ne 로 본다)
+      direction: { $ne: 'out' },
       ...extraQuery,
     })
     .sort(oldestFirst ? { date: 1 } : { date: -1 })
@@ -217,8 +220,10 @@ export async function findUnanalyzed(limit = 20, extraQuery = {}, { oldestFirst 
 /** AI 분석 대기 건수 — 비용 예측용 */
 export async function countUnanalyzed() {
   const mails = await collections.mails();
+  // 화면의 '분석 대기 N통 · 예상 ₩M' 이 크론 대상과 같아야 한다
   return mails.countDocuments({
     $or: [{ analysis: null }, { 'analysis.method': { $ne: 'ai' } }],
     classification: { $nin: ['ad', 'system'] },
+    direction: { $ne: 'out' },
   });
 }

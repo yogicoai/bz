@@ -14,6 +14,23 @@
 const SYSTEM_SENDER =
   /(^|[._-])(noreply|no-reply|donotreply|do-not-reply|notification|notify|alert|mailer-daemon|postmaster|bounce|bounces|automated)/i;
 
+/**
+ * 제목만으로 자동발송이 확실한 것들.
+ *
+ * 발신 주소가 멀쩡한 사람 주소여도 내용이 기계 발송인 경우가 있다.
+ * 부재중 자동응답이 대표적인데, 사람 주소에서 오고 스레드에 섞여 있어
+ * 발신자 규칙으로는 절대 안 걸린다. 그대로 두면 매일 상한 20통 중
+ * 몇 자리를 이런 것들이 차지한다.
+ */
+const AUTO_SUBJECT = [
+  /^\s*(out of office|automatic reply|auto[- ]?reply|autoreply)/i,
+  /^\s*(자동\s?응답|자동\s?회신|부재중\s?알림)/,
+  /(결제하신\s?내역|카드\s?승인|영수증\s?발행|payment\s?receipt)/i,
+  /(cloud\s?mps|scan\s?to\s?(email|me)|스캔\s?완료)/i,
+  /(운송장\s?번호|배송\s?조회|tracking\s?number\s?is|shipment\s?notification)/i,
+  /^\s*(undeliverable|delivery\s?(status|has\s?failed)|메일\s?발송\s?실패)/i,
+];
+
 /* ── 법정 광고 표기 (정보통신망법: 제목에 (광고) 표기 의무) ── */
 const LEGAL_AD_MARK = /(^|\s)[[(（【]\s*(광고|廣告|AD|ad)\s*[)\]）】]/;
 
@@ -81,6 +98,17 @@ export function ruleClassify(mail, settings = {}) {
   let score = 0;
 
   /* ── 1. 자동발송 (광고와 구분해서 라벨) ── */
+  // 제목이 자동발송 문구면 발신 주소가 사람 주소여도 자동발송이다.
+  // 부재중 자동응답이 대표적 — 스레드에 섞여 들어와 발신자 규칙으로는 안 걸린다.
+  const autoSubject = AUTO_SUBJECT.find((r) => r.test(subject));
+  if (autoSubject) {
+    return {
+      classification: 'system',
+      reason: `자동발송 제목(${subject.slice(0, 20)})`,
+      confident: true,
+    };
+  }
+
   if (SYSTEM_SENDER.test(address) || headerValue(mail, 'auto-submitted')) {
     // 자동발송 주소이면서 광고 문구가 있으면 광고로 본다
     const adish = LEGAL_AD_MARK.test(subject) || AD_PHRASES.some((r) => r.test(text));

@@ -178,9 +178,32 @@ export async function listGroups() {
   const rows = await mails
     .aggregate([
       { $match: { group: { $ne: null } } },
-      { $group: { _id: '$group', n: { $sum: 1 }, last: { $max: '$date' } } },
+      {
+        $group: {
+          _id: '$group',
+          n: { $sum: 1 },
+          last: { $max: '$date' },
+          // 아직 손대지 않은 '받은' 메일 수.
+          // 누적 통수만 보여주면 클릭해서 확인해도 숫자가 그대로라 신호가 되지 않는다.
+          // 우리가 보낸 메일과 광고는 처리할 대상이 아니므로 세지 않는다.
+          fresh: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$status', 'new'] },
+                    { $ne: ['$direction', 'out'] },
+                    { $not: [{ $in: ['$classification', ['ad', 'system']] }] },
+                  ],
+                },
+                1, 0,
+              ],
+            },
+          },
+        },
+      },
       { $sort: { n: -1 } },
     ])
     .toArray();
-  return rows.map((r) => ({ group: r._id, count: r.n, last: r.last }));
+  return rows.map((r) => ({ group: r._id, count: r.n, fresh: r.fresh, last: r.last }));
 }

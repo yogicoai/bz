@@ -102,7 +102,11 @@ export default function Sidebar() {
                         <span aria-hidden style={{ marginRight: 8 }}>📁</span>
                         {g2.group}
                       </span>
-                      <span className="nav-count">{g2.count}</span>
+                      {/* 아직 손대지 않은 건이 있으면 그 수를 강조하고, 없으면 누적 통수만 흐리게.
+                          누적만 보여주면 확인해도 숫자가 그대로라 '볼 것이 있다'는 신호가 되지 않는다. */}
+                      {g2.fresh > 0
+                        ? <span className="nav-badge" title={`확인하지 않은 메일 ${g2.fresh}건 (전체 ${g2.count}통)`}>{g2.fresh}</span>
+                        : <span className="nav-count" title={`전체 ${g2.count}통 · 모두 확인함`}>{g2.count}</span>}
                     </Link>
                   );
                 })}

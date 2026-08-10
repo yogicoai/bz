@@ -48,7 +48,14 @@ export async function analyzeAndSave(mailDoc, settings) {
 }
 
 /** 폴더 하나를 수집한다. 실패해도 다른 폴더는 계속 돌 수 있도록 예외를 밖으로 던진다. */
+/** 수신 계정의 도메인 — 자사 발신 판별 기준 */
+function ownDomainOf(settings) {
+  const u = (settings?.imapUser || settings?.smtpUser || '').toLowerCase();
+  return u.includes('@') ? u.split('@')[1] : '';
+}
+
 async function ingestFolder(settings, folder, { limit, recent, learned, knownGroups = [] }) {
+  const ownDomain = ownDomainOf(settings);
   const state = await getSyncState(folder);
   const stat = {
     folder,
@@ -90,6 +97,14 @@ async function ingestFolder(settings, folder, { limit, recent, learned, knownGro
           stat.grouped++;
         }
       }
+
+      // 보낸 메일인지 받은 메일인지. 우리 도메인에서 온 것은 '보낸 것'이다.
+      //   - 브리핑은 할 일 목록이다. 우리가 쓴 메일은 할 일이 아니다.
+      //   - 요약 대기 1,589통 중 541통(34%)이 자사 발신이라 상한 20통을 잠식한다.
+      // 보관·조회는 그대로 되고, 필요하면 상세에서 직접 요약을 돌릴 수 있다.
+      parsed.direction = ownDomain && (parsed.from?.address || '').toLowerCase().endsWith(`@${ownDomain}`)
+        ? 'out'
+        : 'in';
 
       // 스레드 키는 거래처가 정해진 뒤에 만든다.
       // 같은 제목이라도 거래처가 다르면 다른 대화이므로 순서가 중요하다.
