@@ -302,7 +302,7 @@ export default function GuidePage() {
 
       <Section title="자동으로 도는 것">
         <p style={{ marginTop: 0 }}>
-          <b>매일 오전 9시</b>에 한 번, 서버가 알아서 다음을 수행합니다. 브리핑에는 <b>직전 24시간</b>에 들어온 메일이 담깁니다.
+          <b>매일 오전 8시</b>에 한 번, 서버가 알아서 다음을 수행합니다. 브리핑에는 <b>직전 24시간</b>에 들어온 메일이 담깁니다.
         </p>
         <ol style={{ paddingLeft: 20, marginBottom: 14 }}>
           <li>새 메일 수집</li>

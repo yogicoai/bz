@@ -10,7 +10,7 @@ Next.js 16 · React 19 · MongoDB · Claude API · IMAP/SMTP · 포트 **5900**
 ## 파이프라인 한눈에
 
 ```
-[하루 1회 · 평일 오전 9시 KST]  /api/cron/daily
+[하루 1회 · 매일 오전 8시 KST]  /api/cron/daily
    ↓  [무료] IMAP 수신 → 파싱 (mailparser)
    ↓  [무료] 규칙 필터 — 광고·자동발송·차단도메인 걸러냄  → classification
    ↓  [무료] 로컬 1차 분석 — 답변필요·기한 후보·핵심문장  → analysis(method:'local')
@@ -215,7 +215,8 @@ IMAP/SMTP 접속 정보는 **설정 화면에서 DB 에 저장**되며, env 값�
 
 ## 배포
 
-- **Vercel** — `vercel.json` 의 cron 이 `/api/cron/daily` 를 **매일 00:00 UTC = 오전 9시 KST** 에 호출.
+- **Vercel** — `vercel.json` 의 cron 이 `/api/cron/daily` 를 **매일 23:00 UTC = 오전 8시 KST** 에 호출.
+  (Vercel Cron 은 UTC 기준이라 KST 에서 9시간을 뺀 값을 쓴다. 08 - 9 = -1 → 전날 23시)
   브리핑이 담는 범위는 **직전 24시간**이다. 달력 하루로 잡으면 09시 크론이 그날 00~09시만 보는데
   실측상 메일의 89%가 09시 이후에 온다(유럽·이스라엘 업무시간 = 한국 오후).
   주말도 도는 이유는 이스라엘이 일요일 평일이기 때문이고, 새 제안이 없으면 발송은 건너뛴다.
