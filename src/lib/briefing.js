@@ -89,12 +89,46 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
   }
 }
 
-/** 브리핑을 메일 본문(텍스트)으로 — 하루 한 번 받아보는 용도 */
+/** 메일에 '먼저 볼 것'으로 올릴 최대 건수 — 넘기면 판단이 아니라 읽기가 된다 */
+const MAIL_TOP_N = 5;
+
+/** 기한이 임박(3일 이내)했거나 지난 건으로 본다 */
+function urgentByDeadline(deadline, now = new Date()) {
+  if (!deadline) return false;
+  const d = new Date(deadline);
+  if (Number.isNaN(d.getTime())) return false;
+  const toKstDay = (x) => Math.floor((x.getTime() + 9 * 3600_000) / 86400000);
+  return toKstDay(d) - toKstDay(now) <= 3;
+}
+
+function ddayText(deadline, now = new Date()) {
+  const d = new Date(deadline);
+  const toKstDay = (x) => Math.floor((x.getTime() + 9 * 3600_000) / 86400000);
+  const n = toKstDay(d) - toKstDay(now);
+  if (n === 0) return 'D-DAY';
+  return n > 0 ? `D-${n}` : `D+${-n} 지남`;
+}
+
+const cut = (s, n) => {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? `${t.slice(0, n - 1)}…` : t;
+};
+
+/**
+ * 브리핑을 메일 본문(텍스트)으로.
+ *
+ * 메일은 **"지금 열까, 나중에 열까"를 판단할 만큼만** 담는다. 전체 내용을 넣지 않는 이유:
+ *   1) 이 도구는 넘치는 메일함을 정리하려고 만든 것이다. 거기에 긴 메일을 더 넣으면 안 읽힌다.
+ *   2) 핵심 동선은 '브리핑 화면에서 체크 → 처리완료' 다. 메일에 다 들어 있으면
+ *      화면에 들어오지 않게 되고, 체크가 안 되니 다음 날 같은 건이 또 올라온다.
+ *   3) 번역 2단 비교·답장 초안·발송·메모는 화면에서만 된다.
+ * 그래서 급한 것 몇 건만 한 줄 요약과 함께 싣고, 나머지는 건수로만 알린다.
+ */
 export function renderBriefingText(b, baseUrl = '') {
   const L = [];
   const day = b.days > 1 ? `${b.date} 기준 최근 ${b.days}일` : b.date;
 
-  L.push(`■ 제안 메일 브리핑 (${day})`);
+  L.push(`■ 오늘의 제안 메일 — ${day}`);
   L.push('');
   if (!b.total) {
     L.push('새로 들어온 제안 메일이 없습니다.');
@@ -102,27 +136,47 @@ export function renderBriefingText(b, baseUrl = '') {
   }
 
   L.push(`총 ${b.total}건 · 답변 필요 ${b.needsReply}건 · 기한 있음 ${b.withDeadline}건`);
-  L.push('');
-  L.push('─'.repeat(46));
 
-  b.items.forEach((m, i) => {
-    const a = m.analysis || {};
-    const mark = a.needsReply ? '[답변필요]' : '[참고]';
+  // 급한 것 = 기한 임박·초과 또는 긴급도 높음. 기한 있는 것을 먼저, 그 다음 긴급도순.
+  const now = new Date();
+  const urgent = b.items
+    .filter((m) => {
+      const a = m.analysis || {};
+      return urgentByDeadline(a.deadline, now) || (a.urgency === 'high' && a.needsReply);
+    })
+    .sort((x, y) => {
+      const ax = x.analysis || {};
+      const ay = y.analysis || {};
+      if (Boolean(ax.deadline) !== Boolean(ay.deadline)) return ax.deadline ? -1 : 1;
+      if (ax.deadline && ay.deadline) return new Date(ax.deadline) - new Date(ay.deadline);
+      return 0;
+    })
+    .slice(0, MAIL_TOP_N);
+
+  if (urgent.length) {
     L.push('');
-    L.push(`${i + 1}. ${mark}${m.group ? ` [${m.group}]` : ''} ${m.translation?.subject || m.subject}`);
-    L.push(`   보낸이: ${m.from?.name || ''} <${m.from?.address || ''}>`);
-    if (a.topic) L.push(`   주제: ${a.topic}`);
-    if (a.summary) L.push(`   요약: ${a.summary}`);
-    if (a.deadline) {
-      const d = new Date(a.deadline).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
-      L.push(`   기한: ${d}`);
-    }
-    if (a.suggestedAction) L.push(`   조치: ${a.suggestedAction}`);
-    if (baseUrl) L.push(`   열기: ${baseUrl}/mails/${m._id}`);
-  });
+    L.push('━━ 먼저 볼 것 ━━');
+    urgent.forEach((m, i) => {
+      const a = m.analysis || {};
+      const head = [
+        m.group ? `[${m.group}]` : '[미분류]',
+        a.deadline ? ddayText(a.deadline, now) : '',
+      ].filter(Boolean).join('  ');
 
+      L.push('');
+      L.push(`${i + 1}. ${head}`);
+      L.push(`   ${cut(a.topic || m.translation?.subject || m.subject, 60)}`);
+      // 무엇을 하면 되는지 한 줄. 폰에서 훑을 때 이 줄로 판단이 선다.
+      const action = a.suggestedAction || a.summary;
+      if (action) L.push(`   → ${cut(action, 70)}`);
+      if (baseUrl) L.push(`   ${baseUrl}/mails/${m._id}`);
+    });
+  }
+
+  const rest = b.total - urgent.length;
   L.push('');
-  L.push('─'.repeat(46));
-  if (baseUrl) L.push(`전체 브리핑: ${baseUrl}/briefing`);
+  if (rest > 0) L.push(`나머지 ${rest}건은 브리핑 화면에서 확인하세요.`);
+  else L.push('전체 내용은 브리핑 화면에서 확인하세요.');
+  if (baseUrl) L.push(`→ ${baseUrl}/briefing`);
   return L.join('\n');
 }
