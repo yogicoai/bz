@@ -302,7 +302,7 @@ export default function GuidePage() {
 
       <Section title="자동으로 도는 것">
         <p style={{ marginTop: 0 }}>
-          <b>평일 오전 9시</b>에 한 번, 서버가 알아서 다음을 수행합니다.
+          <b>매일 오전 9시</b>에 한 번, 서버가 알아서 다음을 수행합니다. 브리핑에는 <b>직전 24시간</b>에 들어온 메일이 담깁니다.
         </p>
         <ol style={{ paddingLeft: 20, marginBottom: 14 }}>
           <li>새 메일 수집</li>
@@ -311,7 +311,9 @@ export default function GuidePage() {
           <li>브리핑 생성 + 설정된 주소로 브리핑 메일 발송</li>
         </ol>
         <p className="muted" style={{ marginBottom: 0 }}>
-          새 제안이 없는 날은 메일을 보내지 않습니다. 메일 서버가 잠깐 안 되더라도 이미 받아둔 메일의 요약·브리핑은 그대로 진행됩니다.
+          새 제안이 없는 날은 메일을 보내지 않습니다. 그래서 주말에도 도는 것이 손해가 아닙니다 —
+          이스라엘 거래처는 <b>일요일이 평일</b>이라 그날 오는 메일이 적지 않습니다.
+          메일 서버가 잠깐 안 되더라도 이미 받아둔 메일의 요약·브리핑은 그대로 진행됩니다.
         </p>
       </Section>
 

@@ -34,8 +34,23 @@ export function kstDateString(d = new Date()) {
 export async function getBriefing({ date, days = 1, includeDone = false } = {}) {
   try {
     const mails = await collections.mails();
-    const { start, end } = kstDayRange(date);
-    const from = new Date(end.getTime() - days * 86400_000);
+
+    // 날짜를 지정하면 그 '달력 하루'를 본다 (화면에서 ← → 로 넘길 때).
+    //
+    // 지정하지 않으면(크론·'오늘') **지금부터 거슬러 N일**을 본다.
+    // 달력 하루로 잡으면 오전 9시에 도는 크론이 그날 00~09시만 보게 되는데,
+    // 실측하면 메일의 89%가 09시 이후에 온다(유럽·이스라엘 업무시간이 한국 오후다).
+    // 그러면 대부분의 메일이 어느 브리핑에도 담기지 않는다.
+    let start;
+    let end;
+    if (date) {
+      ({ start, end } = kstDayRange(date));
+      start = new Date(end.getTime() - days * 86400_000);
+    } else {
+      end = new Date();
+      start = new Date(end.getTime() - days * 86400_000);
+    }
+    const from = start;
 
     // 기간은 '메일이 온 날짜'(date) 기준이다. 수집 시각으로 잡으면
     // 과거 메일을 오늘 수집했다는 이유로 오늘 브리핑에 쏟아진다.
