@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react';
 
 const KEY = 'ed_theme'; // 'light' | 'dark' | 'system'
 
+/**
+ * 고르지 않았을 때의 기본값은 **어둡게** 다.
+ * OS 설정을 따르게 두면 밝은 화면을 쓰는 PC 에서 흰 배경으로 열리는데,
+ * 이 도구는 종일 띄워두고 목록을 훑는 화면이라 어두운 쪽이 기본이어야 한다.
+ * '자동' 을 직접 고르면 그때부터 OS 설정을 따른다.
+ */
+const DEFAULT_MODE = 'dark';
+
 /** 저장된 선택을 <html data-theme> 에 반영. system 이면 속성을 지워 OS 설정을 따르게 한다. */
 function apply(mode) {
   const el = document.documentElement;
@@ -15,7 +23,9 @@ export default function ThemeToggle() {
   const [mode, setMode] = useState(null); // 서버·클라이언트 불일치를 피하려고 null 로 시작
 
   useEffect(() => {
-    setMode(localStorage.getItem(KEY) || 'system');
+    const saved = localStorage.getItem(KEY);
+    setMode(saved || DEFAULT_MODE);
+    if (!saved) apply(DEFAULT_MODE);
   }, []);
 
   function pick(next) {
@@ -80,7 +90,11 @@ export const themeInitScript = `
 (function(){
   try {
     var m = localStorage.getItem('${KEY}');
+    // 고른 적이 없으면 어둡게. 첫 방문에 흰 화면이 번쩍이지 않도록 여기서 정한다.
+    if (!m) m = '${DEFAULT_MODE}';
     if (m === 'light' || m === 'dark') document.documentElement.setAttribute('data-theme', m);
-  } catch (e) {}
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', '${DEFAULT_MODE}');
+  }
 })();
 `;

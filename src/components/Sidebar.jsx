@@ -11,7 +11,7 @@ const NAV = [
     group: '관리',
     items: [
       { href: '/briefing', label: '오늘의 브리핑', icon: '📋', badge: 'briefing' },
-      { href: '/', label: '대시보드', icon: '📊', exact: true },
+      { href: '/dashboard', label: '대시보드', icon: '📊' },
       { href: '/mails', label: '전체 메일함', icon: '📬' },
       { href: '/deadlines', label: '기한·답변', icon: '⏰' },
     ],
@@ -53,7 +53,7 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <Link href="/" className="brand">
+      <Link href="/briefing" className="brand">
         {/* 원본이 검은색 단색이라 다크 테마에서만 흰색으로 반전한다 (--logo-filter) */}
         <Image
           src="/logo.png"

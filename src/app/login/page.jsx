@@ -32,7 +32,10 @@ function LoginForm() {
         body: JSON.stringify(setup ? { password, setup: true } : { password }),
       }).then((x) => x.json());
       if (!r.ok) throw new Error(r.error || '로그인 실패');
-      router.replace(params.get('next') || '/');
+      // 로그인 직후에는 브리핑으로 보낸다. 이 도구의 하루 시작점이 거기다.
+      // 인증이 풀려 튕긴 경우에는 보던 화면으로 돌려준다(next 파라미터).
+      const back = params.get('next');
+      router.replace(back && back !== '/' ? back : '/briefing');
       router.refresh();
     } catch (e) {
       setErr(String(e.message || e));
@@ -49,9 +52,10 @@ function LoginForm() {
           width={1500}
           height={337}
           priority
+          // 실제로는 200px 로 그리는데 sizes 가 없으면 3840px 원본을 받아온다
+          sizes="200px"
           className="login-logo"
         />
-        <div className="muted" style={{ fontSize: 13, marginBottom: 22 }}>메일 관리</div>
 
         {setup === null ? (
           <div className="muted" style={{ fontSize: 13 }}>확인 중…</div>

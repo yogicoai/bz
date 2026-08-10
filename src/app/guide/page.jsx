@@ -181,7 +181,7 @@ export default function GuidePage() {
         <Row name="오늘의 브리핑" href="/briefing">
           하루치 제안 메일 목록. <b>가장 자주 쓰게 될 화면</b>입니다. 날짜를 옮기거나 최근 3일·7일치를 한 번에 볼 수 있습니다.
         </Row>
-        <Row name="대시보드" href="/">
+        <Row name="대시보드" href="/dashboard">
           전체 현황. 답변 필요·기한 지남·임박 건수를 한눈에 봅니다.
         </Row>
         <Row name="메일함" href="/mails">
