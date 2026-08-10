@@ -5,6 +5,7 @@
  *   node scripts/export-pending.js 20         20통
  *   node scripts/export-pending.js 10 --group "Yogibo Japan"   특정 거래처만
  *   node scripts/export-pending.js 10 --chars 5000             본문 길이 상한 조정
+ *   node scripts/export-pending.js 20 --days 30               최근 30일치만
  *
  * 이 파일(_pending.json)을 Claude Code 에게 읽히고 요약을 받아
  * _summaries.json 으로 저장한 뒤 apply-summaries.js 로 반영한다.
@@ -29,6 +30,9 @@ const groupIdx = args.indexOf('--group');
 const GROUP = groupIdx >= 0 ? args[groupIdx + 1] : null;
 const charsIdx = args.indexOf('--chars');
 const MAX_CHARS = charsIdx >= 0 ? Number(args[charsIdx + 1]) || 3500 : 3500;
+// 최근 N일로 범위를 좁힌다 — 오래된 것까지 한꺼번에 다루면 끝이 안 난다
+const daysIdx = args.indexOf('--days');
+const DAYS = daysIdx >= 0 ? Number(args[daysIdx + 1]) || 0 : 0;
 
 (async () => {
   // 앱과 같은 인용부 제거 규칙을 쓴다 (중복 구현하면 규칙이 어긋난다)
@@ -47,6 +51,7 @@ const MAX_CHARS = charsIdx >= 0 ? Number(args[charsIdx + 1]) || 3500 : 3500;
     folder: { $ne: 'DEMO' },
   };
   if (GROUP) query.group = GROUP;
+  if (DAYS) query.date = { $gte: new Date(Date.now() - DAYS * 86400000) };
 
   const total = await mails.countDocuments(query);
 
