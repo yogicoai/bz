@@ -23,12 +23,16 @@ const SYSTEM_SENDER =
  * 몇 자리를 이런 것들이 차지한다.
  */
 const AUTO_SUBJECT = [
-  /^\s*(out of office|automatic reply|auto[- ]?reply|autoreply)/i,
+  /^\s*(out of (the )?office|automatic reply|auto[- ]?reply|autoreply|absence)/i,
   /^\s*(자동\s?응답|자동\s?회신|부재중\s?알림)/,
   /(결제하신\s?내역|카드\s?승인|영수증\s?발행|payment\s?receipt)/i,
   /(cloud\s?mps|scan\s?to\s?(email|me)|스캔\s?완료)/i,
   /(운송장\s?번호|배송\s?조회|tracking\s?number\s?is|shipment\s?notification)/i,
   /^\s*(undeliverable|delivery\s?(status|has\s?failed)|메일\s?발송\s?실패)/i,
+  // 읽음 확인 — 상대 메일 클라이언트가 자동으로 보낸다. 사람 주소에서 오고
+  // 제목이 원문 제목 그대로라 스레드에 섞여 들어온다. 내용은 "읽었습니다" 한 줄뿐이다.
+  /^\s*(read:|읽음:|열람\s?확인)/i,
+  /^\s*(수신\s?확인|delivered:)/i,
 ];
 
 /* ── 법정 광고 표기 (정보통신망법: 제목에 (광고) 표기 의무) ── */

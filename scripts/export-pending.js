@@ -49,6 +49,8 @@ const DAYS = daysIdx >= 0 ? Number(args[daysIdx + 1]) || 0 : 0;
     classification: { $nin: ['ad', 'system'] },
     status: { $in: ['new', 'reviewing'] },
     folder: { $ne: 'DEMO' },
+    // 우리가 보낸 메일은 요약 대상이 아니다 (앱의 자동 요약 기준과 동일하게)
+    direction: { $ne: 'out' },
   };
   if (GROUP) query.group = GROUP;
   if (DAYS) query.date = { $gte: new Date(Date.now() - DAYS * 86400000) };
