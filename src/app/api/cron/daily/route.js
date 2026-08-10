@@ -19,6 +19,20 @@ import { sendBriefing } from '@/lib/email/smtp';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+/**
+ * AI 요약에 쓸 수 있는 시간 상한 (ms).
+ *
+ * Vercel 함수는 300초에서 강제 종료된다(Hobby 는 이 값이 상한이자 기본값).
+ * 요약 루프가 그 300초를 다 써 버리면 **뒤에 오는 브리핑 발송까지 가지 못하고**
+ * 504 로 끊긴다 — 이 크론의 존재 이유가 브리핑 메일인데 그것만 못 나가는 셈이다.
+ * 실측: 20통 요약 + 12개 폴더 수집 = 241초로 여유가 20% 뿐이었다.
+ *
+ * 그래서 요약은 시간이 남는 만큼만 하고, 남은 통수는 다음 날로 넘긴다.
+ * 요약이 하루 밀리는 것은 브리핑이 아예 안 오는 것보다 훨씬 낫다.
+ * (findUnanalyzed 가 최신순으로 집어오므로 밀리는 것은 항상 오래된 메일이다)
+ */
+const ANALYZE_BUDGET_MS = 210_000;
+
 function authorized(req) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
@@ -56,8 +70,14 @@ export async function GET(req) {
       const cap = Math.min(Number(sp.get('max')) || Number(settings.dailyAnalyzeLimit) || 20, 50);
       const pending = await findUnanalyzed(cap, { classification: { $in: PROPOSAL_CLASSES } });
 
-      result.analyze = { target: pending.length, done: 0, errors: [] };
+      result.analyze = { target: pending.length, done: 0, skippedForTime: 0, errors: [] };
       for (const doc of pending) {
+        // 남은 시간이 부족하면 여기서 멈춘다 — 브리핑 발송 시간을 반드시 남겨야 한다
+        if (Date.now() - result.startedAt.getTime() > ANALYZE_BUDGET_MS) {
+          result.analyze.skippedForTime = pending.length - result.analyze.done - result.analyze.errors.length;
+          console.warn(`[cron/daily] 시간 예산 소진 — ${result.analyze.skippedForTime}통을 다음 실행으로 넘깁니다.`);
+          break;
+        }
         try {
           await analyzeAndSave(doc, settings);
           result.analyze.done++;
