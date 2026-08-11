@@ -15,7 +15,7 @@ export const ALLOWED_KEYS = [
   'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass',
   'mailFromName', 'mailFromAddress',
   'claudeModel',
-  'blockedDomains', 'blockedKeywords',
+  'blockedDomains', 'blockedKeywords', 'systemSenders',
   'fetchLimit', 'autoAnalyze',
   'briefingEmail', 'briefingDays', 'dailyAnalyzeLimit',
 ];
@@ -53,6 +53,9 @@ export function defaults() {
     // 규칙 필터 — 광고로 확정할 발신 도메인/제목 키워드
     blockedDomains: [],
     blockedKeywords: ['(광고)', '[광고]', '무료체험', 'unsubscribe'],
+    // 사내 자동화가 보내는 알림 주소 — 광고가 아니라 자동발송(system)으로 라벨한다.
+    // 제목이 매번 달라 키워드로 못 잡고, gmail 주소라 도메인 차단도 쓸 수 없다.
+    systemSenders: [],
 
     // 수집
     fetchLimit: 50,      // 1회 수집 시 최대 통수

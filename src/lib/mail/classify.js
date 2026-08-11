@@ -33,7 +33,29 @@ const AUTO_SUBJECT = [
   // 제목이 원문 제목 그대로라 스레드에 섞여 들어온다. 내용은 "읽었습니다" 한 줄뿐이다.
   /^\s*(read:|읽음:|열람\s?확인)/i,
   /^\s*(수신\s?확인|delivered:)/i,
+  // 인증번호·로그인 알림 — 어느 서비스에서 오든 기계 발송이고 읽는 순간 용도가 끝난다.
+  // 사람 주소나 멀쩡한 도메인에서 오는 경우가 많아 발신자 규칙으로는 안 걸린다.
+  /(인증\s?번호|인증\s?코드|verification\s?code|one[- ]?time\s?(password|code)|\bOTP\b)/i,
+  /(로그인\s?(요청|알림|시도)|새로운\s?기기로\s?로그인|new\s?(sign[- ]?in|login|device))/i,
+  // 시스템 상태 알림 — 사람이 답할 대상이 아니다
+  /(시스템\s?(이상|장애|점검)|서버\s?점검|인증\s?(끊김|만료)|커넥터\s?인증)/,
 ];
+
+/**
+ * 사내 자동화가 보내는 알림 주소.
+ *
+ * 실측: 이사님 메일함의 한 달치 분석 대상 43통 중 16통(37%)이 사내 AI 시스템
+ * 한 곳에서 온 알림이었다. 제목이 매번 달라 키워드로는 못 잡고, 주소가
+ * gmail 이라 도메인 차단도 못 쓴다(다른 거래처 담당자도 gmail 을 쓴다).
+ * 그래서 **주소 정확 일치** 목록을 설정에 둔다.
+ *
+ * 광고가 아니라 자동발송이므로 'system' 으로 라벨한다 — 메일함에서 필터를
+ * 풀면 그대로 볼 수 있고, 브리핑과 AI 요약 대상에서만 빠진다.
+ */
+function isSystemSender(address, settings) {
+  const list = settings.systemSenders || [];
+  return list.some((s) => s && address === String(s).toLowerCase().trim());
+}
 
 /* ── 법정 광고 표기 (정보통신망법: 제목에 (광고) 표기 의무) ── */
 const LEGAL_AD_MARK = /(^|\s)[[(（【]\s*(광고|廣告|AD|ad)\s*[)\]）】]/;
@@ -102,6 +124,14 @@ export function ruleClassify(mail, settings = {}) {
   let score = 0;
 
   /* ── 1. 자동발송 (광고와 구분해서 라벨) ── */
+  // 설정에 등록한 사내 자동화 주소 — 제목이 매번 달라 키워드로는 못 잡는다
+  if (isSystemSender(address, settings)) {
+    return {
+      classification: 'system', classifiedBy: 'rule',
+      reason: `사내 자동발송 주소(${address})`, confident: true, score: 0,
+    };
+  }
+
   // 제목이 자동발송 문구면 발신 주소가 사람 주소여도 자동발송이다.
   // 부재중 자동응답이 대표적 — 스레드에 섞여 들어와 발신자 규칙으로는 안 걸린다.
   const autoSubject = AUTO_SUBJECT.find((r) => r.test(subject));

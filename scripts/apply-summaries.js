@@ -14,6 +14,10 @@ const path = require('node:path');
 const { MongoClient, ObjectId } = require('mongodb');
 
 function env(key) {
+  // 셸에서 준 값이 파일보다 우선한다. 인스턴스가 둘(대표님·이사님)이 되면서
+  // 같은 스크립트를 다른 DB 로 돌릴 일이 생겼다:
+  //   MONGODB_DB=emaildata_jay node scripts/export-pending.js 50 --days 30
+  if (process.env[key]) return String(process.env[key]).trim();
   const p = path.join(process.cwd(), '.env.local');
   if (!fs.existsSync(p)) return '';
   const m = fs.readFileSync(p, 'utf8').match(new RegExp(`^${key}=(.*)$`, 'm'));
