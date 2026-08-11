@@ -56,13 +56,15 @@ export default async function DashboardPage() {
 
       <Panel title="답변이 필요한 메일" count={d.replyList.length} more="/deadlines">
         {d.replyList.length ? (
-          <table>
+          <div className="table-wrap">
+            <table>
             <tbody>
               {d.replyList.map((m) => (
                 <MailRow key={m._id} mail={m} show={{ urgency: true, deadline: true, action: true }} />
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         ) : (
           <div className="empty">답변 대기 중인 메일이 없습니다. 👍</div>
         )}
@@ -70,13 +72,15 @@ export default async function DashboardPage() {
 
       <Panel title="기한이 있는 메일" count={d.deadlineList.length} more="/deadlines">
         {d.deadlineList.length ? (
-          <table>
+          <div className="table-wrap">
+            <table>
             <tbody>
               {d.deadlineList.map((m) => (
                 <MailRow key={m._id} mail={m} show={{ deadline: true, urgency: true }} />
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         ) : (
           <div className="empty">기한이 잡힌 메일이 없습니다.</div>
         )}
@@ -85,13 +89,15 @@ export default async function DashboardPage() {
       <div className="split">
         <Panel title="최근 수집" count={d.recent.length} more="/mails">
           {d.recent.length ? (
-            <table>
+            <div className="table-wrap">
+              <table>
               <tbody>
                 {d.recent.map((m) => (
                   <MailRow key={m._id} mail={m} show={{ classification: true }} />
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           ) : (
             <div className="empty">
               아직 수집된 메일이 없습니다.
@@ -105,7 +111,8 @@ export default async function DashboardPage() {
         <div className="card">
           <div className="card-title">분류 현황</div>
           {d.byClassification.length ? (
-            <table>
+            <div className="table-wrap">
+              <table>
               <tbody>
                 {d.byClassification.map((c) => (
                   <tr key={c._id || 'none'}>
@@ -118,7 +125,8 @@ export default async function DashboardPage() {
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{k.total.toLocaleString()}</td>
                 </tr>
               </tbody>
-            </table>
+              </table>
+            </div>
           ) : (
             <div className="empty">데이터 없음</div>
           )}

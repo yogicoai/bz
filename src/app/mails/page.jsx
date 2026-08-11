@@ -236,7 +236,8 @@ function MailsInner() {
             <span style={{ fontSize: 12 }}>먼저 <Link href="/settings" style={{ color: 'var(--accent)' }}>설정</Link>에서 IMAP 연결을 확인해야 합니다.</span>
           </div>
         ) : (
-          <table>
+          <div className="table-wrap">
+            <table>
             <thead>
               <tr>
                 <th style={{ width: 34 }} title="읽고 판단이 끝났으면 체크하세요"> </th>
@@ -305,7 +306,8 @@ function MailsInner() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
     </>

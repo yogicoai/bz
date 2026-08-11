@@ -55,13 +55,15 @@ export default async function DeadlinesPage() {
               — 지금 대응하기엔 늦은 건입니다. 확인만 하고 넘기셔도 됩니다.
             </span>
           </summary>
-          <table style={{ marginTop: 12 }}>
+          <div className="table-wrap">
+            <table style={{ marginTop: 12 }}>
             <tbody>
               {d.longOverdue.map((m) => (
                 <MailRow key={m._id} mail={m} show={{ deadline: true }} />
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </details>
       )}
 
@@ -101,7 +103,8 @@ function Group({ title, items, empty, tone, showDeadline = true }) {
         {title} <span className="muted" style={{ fontWeight: 400 }}>({items.length})</span>
       </div>
       <div style={{ padding: '0 8px 8px' }}>
-        <table>
+        <div className="table-wrap">
+          <table>
           <tbody>
             {items.map((m) => (
               <MailRow
@@ -111,7 +114,8 @@ function Group({ title, items, empty, tone, showDeadline = true }) {
               />
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );

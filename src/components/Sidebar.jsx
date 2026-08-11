@@ -26,7 +26,7 @@ const NAV = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ open = false, onClose }) {
   const path = usePathname();
   const [todayCount, setTodayCount] = useState(null);
   const [groups, setGroups] = useState([]);
@@ -52,7 +52,12 @@ export default function Sidebar() {
   }, [path]);
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? ' open' : ''}`}>
+      {/* 폰에서 서랍을 닫는 버튼 — 넓은 화면에서는 CSS 로 숨긴다 */}
+      <button type="button" className="nav-close" onClick={onClose} aria-label="메뉴 닫기">
+        <span aria-hidden>✕</span>
+      </button>
+
       <Link href="/briefing" className="brand">
         {/* 원본이 검은색 단색이라 다크 테마에서만 흰색으로 반전한다 (--logo-filter) */}
         <Image

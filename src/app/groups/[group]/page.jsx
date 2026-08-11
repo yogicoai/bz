@@ -150,7 +150,8 @@ export default function GroupPage({ params }) {
         ) : !items.length ? (
           <div className="empty">조건에 맞는 메일이 없습니다.</div>
         ) : (
-          <table>
+          <div className="table-wrap">
+            <table>
             <thead>
               <tr>
                 <th style={{ width: 34 }} title="읽고 판단이 끝났으면 체크하세요"> </th>
@@ -207,7 +208,8 @@ export default function GroupPage({ params }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
     </>

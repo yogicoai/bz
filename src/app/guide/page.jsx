@@ -211,7 +211,8 @@ export default function GuidePage() {
           돈이 드는 건 <b>한글 번역과 내용 요약</b> 두 가지뿐입니다. AI(Claude)를 부르기 때문입니다.
         </p>
         <div className="card" style={{ background: 'var(--panel-2)', marginBottom: 14 }}>
-          <table>
+          <div className="table-wrap">
+            <table>
             <thead>
               <tr><th>모델</th><th style={{ textAlign: 'right' }}>메일 1건</th><th style={{ textAlign: 'right' }}>월 (하루 5건·22일)</th></tr>
             </thead>
@@ -220,7 +221,8 @@ export default function GuidePage() {
               <tr><td>Sonnet 5</td><td style={{ textAlign: 'right' }}>약 ₩27</td><td style={{ textAlign: 'right' }}>약 ₩2,970</td></tr>
               <tr><td>Opus 5 (가장 정확)</td><td style={{ textAlign: 'right' }}>약 ₩45</td><td style={{ textAlign: 'right' }}>약 ₩4,950</td></tr>
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li>버튼을 누르기 <b>전에</b> 예상 금액이 항상 표시됩니다.</li>
