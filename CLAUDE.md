@@ -168,6 +168,8 @@ npm run poll                   # 상시 수집 루프 (상시 서버용)
 
 node scripts/learn-folders.js 600   # 거래처 폴더 깊게 수집 (폴더당 최대 600통)
 node scripts/reanalyze-local.js     # 기존 메일 로컬 재분석 (무과금)
+node scripts/backfill-partid.js --dry   # 첨부 다운로드가 안 되는 메일 점검 (무과금)
+node scripts/backfill-partid.js         # 첨부 파트번호 복구
 
 node scripts/seed-demo.js          # 샘플 제안 메일 5통 (IMAP 연결 전 화면 확인용)
 node scripts/seed-demo.js --clean  # 샘플만 삭제  ← 인계 전 반드시 실행
