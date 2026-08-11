@@ -29,6 +29,8 @@ export default function GroupPage({ params }) {
   const [count, setCount] = useState(0);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState('');
+  // 위 숫자 카드를 눌러 표를 좁힌다 ('all' 이면 전체)
+  const [view, setView] = useState('all');
   // 거래처 한 곳에 500통이 넘게 쌓인 곳도 있다. 전부 불러오면 화면이 무거울 뿐
   // 아니라 지금 볼 것을 찾기가 어렵다. 기본은 최근 한 달이고 필요할 때 넓힌다.
   const [f, setF] = useState({
@@ -61,6 +63,10 @@ export default function GroupPage({ params }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // 기간·검색을 바꾸면 좁혀 둔 카드 필터를 푼다 —
+  // 조건이 바뀐 뒤에도 필터가 남아 빈 표를 보고 "메일이 없다"고 오해하지 않도록
+  useEffect(() => { setView('all'); }, [f]);
+
   /**
    * 체크 = 검토 완료. 되돌리면 확인중으로.
    * 브리핑과 같은 동작이라 어느 화면에서 눌러도 같은 결과가 나온다.
@@ -87,6 +93,16 @@ export default function GroupPage({ params }) {
   const needsReply = open.filter((m) => m.analysis?.needsReply);
   const withDeadline = open.filter((m) => m.analysis?.deadline);
 
+  // 위 숫자 카드를 눌러 아래 표를 좁힌다. 숫자만 보여주면
+  // "그래서 그 61건이 뭔데" 를 찾으러 표를 훑어야 한다.
+  const VIEWS = {
+    all: { label: '전체', rows: items },
+    open: { label: '아직 볼 것', rows: open },
+    reply: { label: '답변 필요', rows: needsReply },
+    deadline: { label: '기한 있음', rows: withDeadline },
+  };
+  const shown = (VIEWS[view] || VIEWS.all).rows;
+
   return (
     <>
       <Link href="/groups" className="muted" style={{ fontSize: 13 }}>← 거래처 전체</Link>
@@ -99,12 +115,23 @@ export default function GroupPage({ params }) {
 
       {err && <div className="card" style={{ borderColor: 'var(--bad)', marginBottom: 14 }}>{err}</div>}
 
-      <div className="cards" style={{ marginBottom: 18 }}>
-        <Stat label="아직 볼 것" value={open.length} />
-        <Stat label="답변 필요" value={needsReply.length} tone={needsReply.length ? 'bad' : null} />
-        <Stat label="기한 있음" value={withDeadline.length} tone={withDeadline.length ? 'warn' : null} />
-        <Stat label={periodLabel(f)} value={count} />
+      <div className="cards" style={{ marginBottom: 12 }}>
+        <Stat label="아직 볼 것" value={open.length}
+          active={view === 'open'} onClick={() => setView('open')} />
+        <Stat label="답변 필요" value={needsReply.length} tone={needsReply.length ? 'bad' : null}
+          active={view === 'reply'} onClick={() => setView('reply')} />
+        <Stat label="기한 있음" value={withDeadline.length} tone={withDeadline.length ? 'warn' : null}
+          active={view === 'deadline'} onClick={() => setView('deadline')} />
+        <Stat label={periodLabel(f)} value={count} sub="전체 보기"
+          active={view === 'all'} onClick={() => setView('all')} />
       </div>
+
+      {view !== 'all' && (
+        <div className="row" style={{ marginBottom: 12, gap: 8 }}>
+          <span className="badge b2b">{VIEWS[view].label}만 보는 중 · {shown.length}건</span>
+          <button className="linklike" onClick={() => setView('all')}>전체 보기</button>
+        </div>
+      )}
 
       <div className="card toolbar" style={{ marginBottom: 16 }}>
         <select value={f.from || f.to ? '' : f.days}
@@ -147,8 +174,12 @@ export default function GroupPage({ params }) {
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         {busy && !items.length ? (
           <div className="empty">불러오는 중…</div>
-        ) : !items.length ? (
-          <div className="empty">조건에 맞는 메일이 없습니다.</div>
+        ) : !shown.length ? (
+          <div className="empty">
+            {view === 'all'
+              ? '조건에 맞는 메일이 없습니다.'
+              : `${VIEWS[view].label}에 해당하는 메일이 없습니다.`}
+          </div>
         ) : (
           <div className="table-wrap">
             <table>
@@ -164,7 +195,7 @@ export default function GroupPage({ params }) {
               </tr>
             </thead>
             <tbody>
-              {items.map((m) => (
+              {shown.map((m) => (
                 <tr key={m._id} style={{ opacity: DONE.includes(m.status) ? 0.45 : 1 }}>
                   <td>
                     <input
@@ -216,11 +247,18 @@ export default function GroupPage({ params }) {
   );
 }
 
-function Stat({ label, value, tone }) {
+/** 숫자 카드. 누르면 아래 표가 그 항목만 남는다. */
+function Stat({ label, value, sub, tone, active, onClick }) {
   return (
-    <div className={`card${tone ? ` tone-${tone}` : ''}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`card stat-btn${tone ? ` tone-${tone}` : ''}${active ? ' is-active' : ''}`}
+      aria-pressed={active}
+    >
       <div className="kpi-label">{label}</div>
       <div className="kpi">{value.toLocaleString()}</div>
-    </div>
+      {sub && <div className="kpi-sub">{sub}</div>}
+    </button>
   );
 }
