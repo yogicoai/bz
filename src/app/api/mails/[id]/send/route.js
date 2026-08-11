@@ -24,6 +24,9 @@ export async function POST(req, { params }) {
       body: body.body,
       to: body.to,
       cc: body.cc,
+      // 화면에서 고른 글꼴·크기 (없으면 평문으로 나간다)
+      font: body.font,
+      fontSize: body.fontSize,
     });
 
     const mails = await collections.mails();

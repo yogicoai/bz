@@ -399,6 +399,20 @@ code {
    밀려서 본문 글까지 화면 밖으로 나간다. 표만 제자리에서 스크롤되게 가둔다. */
 .table-wrap { width: 100%; overflow-x: auto; }
 
+/* ── 누를 수 있는 숫자 카드 (브리핑 상단) ──
+   카드가 button 이 되면 브라우저 기본 스타일이 .card 를 덮으므로 되돌려 준다. */
+.stat-btn {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, outline-color 0.12s ease;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+}
+.stat-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.stat-btn.is-active { outline-color: var(--accent); }
+
 /* ── 폰 전용 요소 — 넓은 화면에서는 존재하지 않는다 ── */
 .mobile-bar { display: none; }
 .nav-close { display: none; }

@@ -11,6 +11,21 @@ const inp = {
   background: 'var(--panel-2)', color: 'var(--text)', fontSize: 13,
 };
 
+/** 위쪽 숫자 카드가 거는 필터 — 카드 라벨과 같은 말을 쓴다 */
+const VIEW_LABEL = {
+  all: '전체',
+  reply: '답변 필요',
+  deadline: '기한 있음',
+  pending: '요약 대기',
+};
+
+const VIEW_FILTER = {
+  all: () => true,
+  reply: (m) => Boolean(m.analysis?.needsReply),
+  deadline: (m) => Boolean(m.analysis?.deadline),
+  pending: (m) => m.analysis?.method !== 'ai',
+};
+
 const kstToday = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
 const fmtDay = (d) =>
   d ? new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit' }) : '-';
@@ -24,6 +39,8 @@ function BriefingInner() {
   const [busy, setBusy] = useState(true);
   const [msg, setMsg] = useState('');
   const [apiKeySet, setApiKeySet] = useState(true);
+  // 위쪽 숫자 카드를 눌러 목록을 좁힌다 ('all' 이면 전체)
+  const [view, setView] = useState('all');
 
   useEffect(() => {
     fetch('/api/estimate').then((r) => r.json())
@@ -42,6 +59,12 @@ function BriefingInner() {
   }, [date, days, includeDone]);
 
   useEffect(() => { load(); }, [load]);
+
+  // 날짜·기간을 바꾸면 좁혀 둔 필터를 푼다 — 새 날짜에서 빈 화면을 보고
+  // "메일이 없다"고 오해하는 것을 막는다
+  useEffect(() => { setView('all'); }, [date, days]);
+
+  const shown = (b?.items || []).filter(VIEW_FILTER[view] || VIEW_FILTER.all);
 
   /** 체크 = 처리완료(보관). 되돌리면 확인중으로. */
   async function toggle(mail) {
@@ -129,12 +152,26 @@ function BriefingInner() {
         <div className="empty">불러오는 중…</div>
       ) : !b ? null : (
         <>
+          {/* 숫자를 보여주기만 하면 "그래서 그 4건이 뭔데" 를 찾으러 목록을 훑어야 한다.
+              눌러서 그 4건만 남기는 것이 이 화면에서 가장 자주 하는 동작이다. */}
           <div className="cards" style={{ marginBottom: 16 }}>
-            <Stat label="새 제안" value={b.total} />
-            <Stat label="답변 필요" value={b.needsReply} tone={b.needsReply ? 'bad' : null} />
-            <Stat label="기한 있음" value={b.withDeadline} tone={b.withDeadline ? 'warn' : null} />
-            <Stat label="요약 대기" value={b.unanalyzed} sub={b.unanalyzed ? 'AI 요약 미생성' : '모두 요약됨'} />
+            <Stat label="새 제안" value={b.total}
+              active={view === 'all'} onClick={() => setView('all')} />
+            <Stat label="답변 필요" value={b.needsReply} tone={b.needsReply ? 'bad' : null}
+              active={view === 'reply'} onClick={() => setView('reply')} />
+            <Stat label="기한 있음" value={b.withDeadline} tone={b.withDeadline ? 'warn' : null}
+              active={view === 'deadline'} onClick={() => setView('deadline')} />
+            <Stat label="요약 대기" value={b.unanalyzed}
+              sub={b.unanalyzed ? 'AI 요약 미생성' : '모두 요약됨'}
+              active={view === 'pending'} onClick={() => setView('pending')} />
           </div>
+
+          {view !== 'all' && (
+            <div className="row" style={{ marginBottom: 12, gap: 8 }}>
+              <span className="badge b2b">{VIEW_LABEL[view]}만 보는 중 · {shown.length}건</span>
+              <button className="linklike" onClick={() => setView('all')}>전체 보기</button>
+            </div>
+          )}
 
           {b.unanalyzed > 0 && !apiKeySet && (
             <div className="card" style={{ marginBottom: 14 }}>
@@ -162,15 +199,19 @@ function BriefingInner() {
             </div>
           )}
 
-          {!b.items.length ? (
+          {!shown.length ? (
             <div className="card">
               <div className="empty">
-                이 날짜에 새로 들어온 제안 메일이 없습니다.
-                {!includeDone && <><br /><span style={{ fontSize: 12 }}>처리 완료한 건을 보려면 위의 체크박스를 켜세요.</span></>}
+                {view !== 'all'
+                  ? `${VIEW_LABEL[view]}에 해당하는 메일이 없습니다.`
+                  : '이 날짜에 새로 들어온 제안 메일이 없습니다.'}
+                {view === 'all' && !includeDone && (
+                  <><br /><span style={{ fontSize: 12 }}>처리 완료한 건을 보려면 위의 체크박스를 켜세요.</span></>
+                )}
               </div>
             </div>
           ) : (
-            b.items.map((m, i) => <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)} />)
+            shown.map((m, i) => <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)} />)
           )}
         </>
       )}
@@ -242,13 +283,19 @@ function Item({ mail, index, onToggle }) {
   );
 }
 
-function Stat({ label, value, sub, tone }) {
+/** 숫자 카드. 누르면 아래 목록이 그 항목만 남는다. */
+function Stat({ label, value, sub, tone, active, onClick }) {
   return (
-    <div className={`card${tone ? ` tone-${tone}` : ''}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`card stat-btn${tone ? ` tone-${tone}` : ''}${active ? ' is-active' : ''}`}
+      aria-pressed={active}
+    >
       <div className="kpi-label">{label}</div>
       <div className="kpi">{value}</div>
       {sub && <div className="kpi-sub">{sub}</div>}
-    </div>
+    </button>
   );
 }
 

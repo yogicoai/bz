@@ -12,7 +12,9 @@ const NAV = [
     items: [
       { href: '/briefing', label: '오늘의 브리핑', icon: '📋', badge: 'briefing' },
       { href: '/dashboard', label: '대시보드', icon: '📊' },
-      { href: '/mails', label: '전체 메일함', icon: '📬' },
+      // '전체 메일함'(/mails) 은 메뉴에서 뺐다 — 수천 통을 통째로 보는 화면이라
+      // 오히려 브리핑 동선을 흐린다. 화면 자체는 남아 있어 대시보드의 숫자나
+      // 거래처 목록에서 들어갈 수 있다.
       { href: '/deadlines', label: '기한·답변', icon: '⏰' },
     ],
   },

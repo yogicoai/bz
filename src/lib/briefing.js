@@ -57,6 +57,11 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
     const query = {
       date: { $gte: from, $lt: end },
       classification: { $in: PROPOSAL_CLASSES },
+      // 우리가 보낸 메일은 '처리할 일'이 아니다.
+      // 거래처 폴더에는 보낸 메일 사본이 함께 들어와서, 걸러내지 않으면
+      // "법인카드 사용내역 송부", "매출 보고" 처럼 내가 쓴 메일이
+      // 답변 필요 건으로 브리핑 맨 위에 올라온다(실측 확인).
+      direction: { $ne: 'out' },
     };
     if (!includeDone) query.status = { $nin: DONE_STATUSES };
 

@@ -8,6 +8,19 @@ import {
   deadlineTypeLabel, ddayLabel, ddayTone,
 } from '@/lib/labels';
 
+/** 답장에 쓸 수 있는 글꼴 — 상대 메일 클라이언트에 기본 설치된 것만 (없으면 제멋대로 대체된다) */
+const FONTS = [
+  { value: 'Calibri', label: 'Calibri (기본)' },
+  { value: 'Malgun Gothic', label: '맑은 고딕' },
+  { value: 'Arial', label: 'Arial' },
+  { value: 'Verdana', label: 'Verdana' },
+  { value: 'Tahoma', label: 'Tahoma' },
+  { value: 'Georgia', label: 'Georgia' },
+  { value: 'Times New Roman', label: 'Times New Roman' },
+  { value: 'Gulim', label: '굴림' },
+  { value: 'Batang', label: '바탕' },
+];
+
 const inp = {
   padding: '8px 11px', borderRadius: 8, border: '1px solid var(--border)',
   background: 'var(--panel-2)', color: 'var(--text)', fontSize: 13, width: '100%',
@@ -25,7 +38,6 @@ export default function MailDetailPage({ params }) {
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
-  const [memo, setMemo] = useState('');
 
   const [est, setEst] = useState(null);
 
@@ -34,6 +46,9 @@ export default function MailDetailPage({ params }) {
   const [draft, setDraft] = useState(null);
   const [confirm, setConfirm] = useState(false);
   const [dryRun, setDryRun] = useState(true);
+  // 받는 사람 화면에 보일 글꼴·크기. 아웃룩 기본값과 같게 맞춰 둔다.
+  const [font, setFont] = useState('Calibri');
+  const [fontSize, setFontSize] = useState(10);
 
   async function load() {
     try {
@@ -41,7 +56,6 @@ export default function MailDetailPage({ params }) {
       if (!r.ok) throw new Error(r.error);
       setMail(r.mail);
       setThread(r.thread || []);
-      setMemo(r.mail.memo || '');
     } catch (e) { setErr(String(e.message || e)); }
   }
 
@@ -80,6 +94,18 @@ export default function MailDetailPage({ params }) {
     setBusy(false);
   }
 
+  /** 번역만 생성 — 분류·답변필요·기한(analysis)은 건드리지 않는다 */
+  async function translate() {
+    setBusy(true); setErr(''); setMsg('');
+    try {
+      const r = await fetch(`/api/mails/${id}/translate`, { method: 'POST' }).then((x) => x.json());
+      if (!r.ok) throw new Error(r.error);
+      await load();
+      setMsg('한글 번역을 저장했습니다.');
+    } catch (e) { setErr(String(e.message || e)); }
+    setBusy(false);
+  }
+
   async function makeDraft() {
     setBusy(true); setErr(''); setMsg('');
     try {
@@ -100,7 +126,7 @@ export default function MailDetailPage({ params }) {
       const r = await fetch(`/api/mails/${id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject: draft.subject, body: draft.body }),
+        body: JSON.stringify({ subject: draft.subject, body: draft.body, font, fontSize }),
       }).then((x) => x.json());
       if (!r.ok) throw new Error(r.error);
       setConfirm(false);
@@ -263,14 +289,30 @@ export default function MailDetailPage({ params }) {
           <div className="mailbody orig">{mail.raw?.text || '(본문 없음)'}</div>
         </div>
         <div className="card">
-          <div className="card-title">한글 번역</div>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <div className="card-title" style={{ margin: 0 }}>한글 번역</div>
+            {/* 한국어 메일에는 번역 버튼을 띄우지 않는다 — 눌러도 같은 글이 나오고 돈만 든다 */}
+            {mail.lang !== 'ko' && (
+              <button className="btn sm" onClick={translate} disabled={busy}>
+                {busy ? '번역 중…' : t?.body ? '다시 번역' : '한글로 번역'}
+              </button>
+            )}
+          </div>
           {t?.body ? (
             <>
               <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>{t.subject}</div>
               <div className="mailbody">{t.body}</div>
             </>
+          ) : mail.lang === 'ko' ? (
+            <div className="empty">한국어 메일이라 번역이 필요하지 않습니다.</div>
           ) : (
-            <div className="empty">분석을 실행하면 번역본이 표시됩니다.</div>
+            <div className="empty">
+              위의 <b>한글로 번역</b>을 누르면 번역본이 여기 표시되고 저장됩니다.
+              <div style={{ fontSize: 12, marginTop: 6 }}>
+                번역만 하므로 <b>AI 번역·요약 실행</b>보다 저렴하고, 이미 잡혀 있는
+                답변 필요·기한 판정은 그대로 둡니다.
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -340,6 +382,13 @@ export default function MailDetailPage({ params }) {
             {busy ? '생성 중…' : '초안 생성'}
           </button>
         </div>
+        {/* 버튼만 있으면 무엇이 일어나는지 몰라 누르기를 망설이게 된다 */}
+        <div className="muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7 }}>
+          <b>초안 생성</b>을 누르면 위에 적으신 내용으로 <b>AI가 답장 초안을 만들어 줍니다.</b><br />
+          원문 메일의 맥락과 상대방이 쓰는 언어를 반영해, 인사말·본론·맺음말을 갖춘
+          메일 양식으로 정리됩니다. 만들어진 초안은 <b>발송 전에 직접 고칠 수 있고</b>,
+          발송하기를 누르기 전에는 나가지 않습니다.
+        </div>
 
         {draft && (
           <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
@@ -353,8 +402,31 @@ export default function MailDetailPage({ params }) {
             <input style={inp} value={mail.from?.address || ''} readOnly />
             <label style={{ marginTop: 10 }}>제목</label>
             <input style={inp} value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
-            <label style={{ marginTop: 10 }}>본문 (실제 발송 내용 — 직접 수정 가능)</label>
-            <textarea style={{ ...inp, minHeight: 220 }} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+            <label style={{ marginTop: 10 }}>글꼴 · 크기 (받는 사람 화면에 이렇게 보입니다)</label>
+            <div className="row" style={{ marginBottom: 10 }}>
+              <select style={{ ...inp, width: 'auto' }} value={font} onChange={(e) => setFont(e.target.value)}>
+                {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+              </select>
+              <select style={{ ...inp, width: 'auto' }} value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))}>
+                {[8, 9, 10, 11, 12, 14, 16, 18].map((n) => <option key={n} value={n}>{n} pt</option>)}
+              </select>
+              <span className="muted" style={{ fontSize: 12 }}>
+                한글은 자동으로 맑은 고딕으로 표시됩니다
+              </span>
+            </div>
+
+            <label>본문 (실제 발송 내용 — 직접 수정 가능)</label>
+            <textarea
+              style={{
+                ...inp, minHeight: 220,
+                // 편집 중에도 발송될 모습 그대로 보이게 한다
+                fontFamily: `'${font}', 'Malgun Gothic', sans-serif`,
+                fontSize: `${fontSize}pt`,
+                lineHeight: 1.5,
+              }}
+              value={draft.body}
+              onChange={(e) => setDraft({ ...draft, body: e.target.value })}
+            />
 
             {draft.bodyKo && (
               <>
@@ -382,15 +454,6 @@ export default function MailDetailPage({ params }) {
             ))}
           </div>
         )}
-      </div>
-
-      {/* ── 메모 ── */}
-      <div className="card">
-        <div className="card-title">메모</div>
-        <textarea style={{ ...inp, minHeight: 80 }} value={memo} onChange={(e) => setMemo(e.target.value)} />
-        <div className="row" style={{ marginTop: 10 }}>
-          <button className="btn secondary" onClick={() => patch({ memo }, '메모를 저장했습니다.')} disabled={busy}>메모 저장</button>
-        </div>
       </div>
 
       {/* ── 발송 확인 모달 ── */}
