@@ -6,6 +6,9 @@ import {
   CLASSIFICATIONS, STATUSES,
   classificationLabel, statusLabel, langLabel, ddayLabel, ddayTone,
 } from '@/lib/labels';
+// 대화 묶어보기가 기본값이라 이 함수는 목록의 모든 행에서 불린다.
+// import 가 빠져 있어 화면이 통째로 죽었다 — thread.js 는 순수 함수만 있어 클라이언트에서 안전하다.
+import { displaySubject } from '@/lib/mail/thread';
 
 const inp = {
   padding: '8px 11px', borderRadius: 8, border: '1px solid var(--border)',
