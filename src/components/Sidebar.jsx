@@ -33,6 +33,9 @@ export default function Sidebar({ open = false, onClose }) {
   const [todayCount, setTodayCount] = useState(null);
   const [groups, setGroups] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [byAccount, setByAccount] = useState({});
+  // 계정 아래 폴더를 펼쳐 둔 계정 id (한 번에 하나만)
+  const [expanded, setExpanded] = useState(null);
 
   // 오늘 처리할 제안 건수 — 브리핑 메뉴 배지
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function Sidebar({ open = false, onClose }) {
     let alive = true;
     fetch('/api/groups')
       .then((r) => r.json())
-      .then((r) => { if (alive && r.ok) setGroups(r.groups); })
+      .then((r) => { if (alive && r.ok) { setGroups(r.groups); setByAccount(r.byAccount || {}); } })
       .catch(() => {});
     return () => { alive = false; };
   }, [path]);
@@ -105,32 +108,70 @@ export default function Sidebar({ open = false, onClose }) {
             })}
           </nav>
 
-          {/* 메일 계정 — 여러 개 등록했을 때만. 한 곳만 쓰면 이 구분이 의미가 없다. */}
+          {/* 메일 계정 → 그 안의 폴더. 계정을 여러 개 등록했을 때만 2단이 된다.
+              한 곳만 쓰면 계정 줄이 군더더기라 아래의 평평한 목록을 그대로 쓴다. */}
           {gi === 0 && accounts.length > 1 && (
             <div style={{ marginTop: 18 }}>
               <div className="nav-group-title">메일 계정</div>
               <nav className="nav">
                 {accounts.map((a) => {
                   const href = `/accounts/${encodeURIComponent(a.id)}`;
+                  const mine = byAccount[a.id] || [];
+                  const open = expanded === a.id || decodeURIComponent(path).startsWith(href);
                   return (
-                    <Link key={a.id} href={href}
-                      className={decodeURIComponent(path) === decodeURIComponent(href) ? 'active' : ''}>
-                      <span className="label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <span aria-hidden style={{ marginRight: 8 }}>✉️</span>
-                        {a.label}
-                      </span>
-                      {a.fresh > 0
-                        ? <span className="nav-badge" title={`최근 한 달 확인하지 않은 메일 ${a.fresh}건`}>{a.fresh}</span>
-                        : <span className="nav-count" title={`최근 한 달 ${a.recent}통 · 전체 ${a.total.toLocaleString()}통`}>{a.recent}</span>}
-                    </Link>
+                    <div key={a.id}>
+                      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                        {/* 펼치기는 이름과 분리한다 — 이름을 누르면 그 계정 전체가 열려야 한다 */}
+                        <button type="button" className="nav-caret"
+                          onClick={() => setExpanded(open ? null : a.id)}
+                          aria-label={open ? '폴더 접기' : '폴더 펼치기'}
+                          aria-expanded={open}>
+                          {open ? '▾' : '▸'}
+                        </button>
+                        <Link href={href} style={{ flex: 1, minWidth: 0 }}
+                          className={decodeURIComponent(path) === decodeURIComponent(href) ? 'active' : ''}>
+                          <span className="label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span aria-hidden style={{ marginRight: 8 }}>✉️</span>
+                            {a.label}
+                          </span>
+                          {a.fresh > 0
+                            ? <span className="nav-badge" title={`최근 한 달 확인하지 않은 메일 ${a.fresh}건`}>{a.fresh}</span>
+                            : <span className="nav-count" title={`최근 한 달 ${a.recent}통 · 전체 ${a.total.toLocaleString()}통`}>{a.recent}</span>}
+                        </Link>
+                      </div>
+
+                      {open && (
+                        mine.length ? (
+                          <div className="nav-sub">
+                            {mine.map((g) => {
+                              const gh = `/groups/${encodeURIComponent(g.group)}?account=${encodeURIComponent(a.id)}`;
+                              return (
+                                <Link key={g.group} href={gh}>
+                                  <span className="label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <span aria-hidden style={{ marginRight: 6 }}>📁</span>
+                                    {g.group}
+                                  </span>
+                                  {g.fresh > 0
+                                    ? <span className="nav-badge">{g.fresh}</span>
+                                    : <span className="nav-count">{g.count}</span>}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="nav-sub nav-sub-empty">아직 폴더가 없습니다</div>
+                        )
+                      )}
+                    </div>
                   );
                 })}
               </nav>
             </div>
           )}
 
-          {/* '관리' 바로 아래에 거래처 목록을 붙인다 — 웹메일의 '내 메일함' 과 같은 위치감 */}
-          {gi === 0 && groups.length > 0 && (
+          {/* '관리' 바로 아래에 거래처 목록을 붙인다 — 웹메일의 '내 메일함' 과 같은 위치감.
+              계정을 여러 개 쓰면 위에서 계정별로 이미 나눠 보여주므로 여기서는 생략한다. */}
+          {gi === 0 && accounts.length <= 1 && groups.length > 0 && (
             <div style={{ marginTop: 18 }}>
               <div className="nav-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>거래처 <span style={{ fontWeight: 400 }}>· 최근 한 달</span></span>

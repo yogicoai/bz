@@ -13,19 +13,36 @@ export default function SettingsPage() {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const [test, setTest] = useState(null);
 
   useEffect(() => {
     fetch('/api/settings')
       .then((r) => r.json())
       .then((r) => {
         if (!r.ok) throw new Error(r.error);
+        const s = r.settings;
+        // 계정 목록을 아직 안 쓰던 설치는, 예전 자리(imapHost/imapUser)에 있던
+        // 값을 계정 카드 하나로 보여준다. id 를 'main' 으로 두면 이미 쌓인
+        // 수집 기준점·메일과 그대로 이어지므로 저장해도 아무것도 달라지지 않는다.
+        const seeded = (s.imapAccounts || []).length
+          ? s.imapAccounts
+          : (s.imapHost || s.imapUser
+            ? [{
+              id: 'main',
+              label: s.imapUser || '메일 계정',
+              host: s.imapHost || '', port: s.imapPort || 993, secure: s.imapSecure !== false,
+              user: s.imapUser || '', pass: '', passSet: Boolean(s.imapPassSet),
+              folders: [s.imapFolder || 'INBOX', ...(s.imapFolders || [])].filter(Boolean),
+              enabled: true,
+            }]
+            : []);
+
         setF({
-          ...r.settings,
+          ...s,
           imapPass: '',
           smtpPass: '',
-          blockedDomains: (r.settings.blockedDomains || []).join('\n'),
-          blockedKeywords: (r.settings.blockedKeywords || []).join('\n'),
+          imapAccounts: seeded,
+          blockedDomains: (s.blockedDomains || []).join('\n'),
+          blockedKeywords: (s.blockedKeywords || []).join('\n'),
         });
       })
       .catch((e) => setErr(String(e.message || e)));
@@ -62,20 +79,6 @@ export default function SettingsPage() {
     setBusy(false);
   }
 
-  async function runTest() {
-    setBusy(true); setMsg(''); setErr(''); setTest(null);
-    try {
-      const r = await fetch('/api/test/imap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(f),
-      }).then((x) => x.json());
-      if (!r.ok) throw new Error(r.error);
-      setTest(r);
-      setMsg(r.message);
-    } catch (e) { setErr(String(e.message || e)); }
-    setBusy(false);
-  }
 
   if (err && !f) return <div className="card" style={{ borderColor: 'var(--bad)' }}>{err}</div>;
   if (!f) return <div className="empty">불러오는 중…</div>;
@@ -88,44 +91,8 @@ export default function SettingsPage() {
       {msg && <div className="card" style={{ borderColor: 'var(--good)', marginBottom: 14 }}>{msg}</div>}
       {err && <div className="card" style={{ borderColor: 'var(--bad)', marginBottom: 14 }}>{err}</div>}
 
-      <Section title="메일 수신 (IMAP)"
-        desc="이카운트 웹메일 → 환경설정 → IMAP/POP 설정 에서 수신 서버 주소와 포트를 확인해 입력하세요.">
-        <div className="row" style={{ alignItems: 'flex-end' }}>
-          <Field label="IMAP 서버" flex={2}>
-            <input style={inp} value={f.imapHost || ''} onChange={set('imapHost')} placeholder="예: imap.ecount.com" />
-          </Field>
-          <Field label="포트">
-            <input style={inp} value={f.imapPort || ''} onChange={set('imapPort')} placeholder="993" />
-          </Field>
-          <Field label="SSL">
-            <select style={inp} value={String(f.imapSecure)} onChange={(e) => setF((p) => ({ ...p, imapSecure: e.target.value === 'true' }))}>
-              <option value="true">사용 (993)</option>
-              <option value="false">미사용 (143)</option>
-            </select>
-          </Field>
-        </div>
-        <div className="row" style={{ alignItems: 'flex-end', marginTop: 12 }}>
-          <Field label="계정(이메일)" flex={2}>
-            <input style={inp} value={f.imapUser || ''} onChange={set('imapUser')} autoComplete="off" />
-          </Field>
-          <Field label={f.imapPassSet ? '비밀번호 (저장됨 · 변경 시만 입력)' : '비밀번호'} flex={2}>
-            <input style={inp} type="password" value={f.imapPass || ''} onChange={set('imapPass')} autoComplete="new-password" />
-          </Field>
-          <Field label="수집 폴더">
-            <input style={inp} value={f.imapFolder || ''} onChange={set('imapFolder')} placeholder="INBOX" />
-          </Field>
-        </div>
-
-        <div className="row" style={{ marginTop: 14 }}>
-          <button className="btn secondary" onClick={runTest} disabled={busy}>연결 테스트</button>
-          <span className="muted" style={{ fontSize: 12 }}>저장 전에도 입력값 그대로 테스트합니다.</span>
-        </div>
-
-        {test?.folders && <FolderPicker folders={test.folders} f={f} setF={setF} />}
-      </Section>
-
-      <Section title="메일 계정 (여러 메일함 함께 보기)"
-        desc="Gmail·네이버 등 다른 메일함도 함께 가져와 한 화면에서 볼 수 있습니다. 계정을 하나라도 등록하면 그때부터 여기 등록한 계정들만 수집하므로, 지금 쓰시는 메일함도 함께 등록해 주세요. 비밀번호는 저장 후 화면으로 다시 나오지 않습니다.">
+      <Section title="메일 계정"
+        desc="가져올 메일함입니다. 이카운트·Gmail·네이버를 함께 등록하면 한 화면에서 모아 볼 수 있습니다. 비밀번호는 저장한 뒤 화면으로 다시 나오지 않으니, 계정 주인이 직접 입력하시면 됩니다.">
         <MailAccounts
           accounts={f.imapAccounts || []}
           onChange={(next) => setF((p) => ({ ...p, imapAccounts: next }))}
@@ -246,71 +213,6 @@ export default function SettingsPage() {
         <button className="btn" onClick={save} disabled={busy}>{busy ? '처리 중…' : '저장'}</button>
       </div>
     </>
-  );
-}
-
-/**
- * 서버 폴더 선택 — 새 메일이 들어오는 폴더 1개 + 함께 수집할 거래처 폴더 여러 개.
- * 거래처 폴더는 이미 분류된 메일이라 발신자→거래처 학습 데이터가 된다.
- */
-function FolderPicker({ folders, f, setF }) {
-  const inboxLike = /^(INBOX|Sent|Drafts|Junk|Trash)$/i;
-  const groupFolders = folders.filter((p) => !inboxLike.test(p));
-  const selected = f.imapFolders || [];
-
-  const toggle = (p) =>
-    setF((s) => {
-      const cur = s.imapFolders || [];
-      return { ...s, imapFolders: cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p] };
-    });
-
-  const label = (p) => p.replace(/^INBOX[./]/i, '');
-
-  return (
-    <div className="card" style={{ marginTop: 14, background: 'var(--panel-2)' }}>
-      <div className="card-title">서버 폴더 {folders.length}개</div>
-
-      <label>새 메일이 들어오는 폴더 (분류 대상)</label>
-      <div className="row" style={{ gap: 6, marginBottom: 18 }}>
-        {folders.filter((p) => inboxLike.test(p)).map((p) => (
-          <button key={p} type="button"
-            className={`chip ${f.imapFolder === p ? 'on' : ''}`}
-            onClick={() => setF((s) => ({ ...s, imapFolder: p }))}>
-            {p}
-          </button>
-        ))}
-      </div>
-
-      {groupFolders.length > 0 && (
-        <>
-          <label>
-            함께 수집할 거래처 폴더 ({selected.length}/{groupFolders.length} 선택)
-          </label>
-          <div className="row" style={{ gap: 6 }}>
-            {groupFolders.map((p) => (
-              <button key={p} type="button"
-                className={`chip ${selected.includes(p) ? 'on' : ''}`}
-                onClick={() => toggle(p)}>
-                {label(p)}
-              </button>
-            ))}
-          </div>
-          <div className="row" style={{ marginTop: 12 }}>
-            <button type="button" className="btn secondary sm"
-              onClick={() => setF((s) => ({ ...s, imapFolders: groupFolders }))}>
-              전체 선택
-            </button>
-            <button type="button" className="btn secondary sm"
-              onClick={() => setF((s) => ({ ...s, imapFolders: [] }))}>
-              전체 해제
-            </button>
-            <span className="muted" style={{ fontSize: 12 }}>
-              선택한 폴더의 메일이 거래처 학습 데이터가 됩니다.
-            </span>
-          </div>
-        </>
-      )}
-    </div>
   );
 }
 

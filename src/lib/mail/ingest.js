@@ -230,7 +230,7 @@ export async function runIngest(opts = {}) {
     try { learned = await learnSenderGroups(); } catch { /* 이력 없이도 수집은 된다 */ }
     try {
       // 폴더에서 온 그룹 + 설정에 고른 폴더명 (아직 수집 전이어도 이름 매칭은 가능하도록)
-      const existing = (await listGroups()).map((g) => g.group);
+      const existing = (await listGroups()).groups.map((g) => g.group);
       const fromSettings = (settings.imapFolders || []).map(groupNameFromFolder);
       knownGroups = [...new Set([...existing, ...fromSettings])].filter(Boolean);
     } catch { /* 그룹 목록 없이도 수집은 된다 */ }

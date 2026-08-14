@@ -151,7 +151,7 @@ export function accountAsSettings(account, settings = {}) {
  * **같은 id 의 기존 비밀번호를 유지한다**. 그러지 않으면 사용자가 라벨만
  * 고쳐 저장했을 때 비밀번호가 통째로 지워져 수집이 멈춘다.
  */
-function normalizeAccounts(incoming, existing = []) {
+function normalizeAccounts(incoming, existing = [], legacy = {}) {
   const prev = new Map((existing || []).map((a) => [a.id, a]));
   const used = new Set();
 
@@ -171,8 +171,11 @@ function normalizeAccounts(incoming, existing = []) {
         port: Number(a.port) || 993,
         secure: a.secure !== false,
         user,
-        // 빈 값이면 기존 비밀번호 유지 (화면은 비밀번호를 돌려받지 못한다)
-        pass: a.pass ? String(a.pass) : (old?.pass || ''),
+        // 빈 값이면 기존 비밀번호 유지 (화면은 비밀번호를 돌려받지 못한다).
+        // 'main' 은 계정 개념이 생기기 전부터 쓰던 그 계정이므로, 계정 목록으로
+        // 처음 옮겨질 때 예전 자리(imapPass)에 있던 비밀번호를 그대로 이어받는다.
+        // 이게 없으면 설정을 한 번 저장하는 것만으로 수집이 멈춘다.
+        pass: a.pass ? String(a.pass) : (old?.pass || (id === 'main' ? (legacy.imapPass || '') : '')),
         folders: Array.isArray(a.folders) ? a.folders.filter(Boolean) : (old?.folders || ['INBOX']),
         enabled: a.enabled !== false,
       };
@@ -183,13 +186,17 @@ function normalizeAccounts(incoming, existing = []) {
 export async function saveSettings(patch = {}) {
   const col = await collections.settings();
   const current = await col.findOne({ _id: SETTINGS_ID });
+  // 비밀번호가 DB 가 아니라 환경변수에만 있는 설치가 있다(대표님이 그렇다).
+  // 계정 목록으로 옮길 때 DB 원본만 보면 비밀번호가 빈 채로 넘어가고,
+  // 설정을 한 번 저장하는 것만으로 수집이 멈춘다. 기본값(env)까지 얹어서 본다.
+  const legacy = { ...defaults(), ...(current || {}) };
   const update = {};
   for (const k of ALLOWED_KEYS) {
     if (!(k in patch)) continue;
     let v = patch[k];
     // 빈 비밀번호는 "변경 없음" 으로 간주 — 기존 값을 지우지 않는다
     if (SECRET_KEYS.includes(k) && !v) continue;
-    if (k === 'imapAccounts') v = normalizeAccounts(v, current?.imapAccounts);
+    if (k === 'imapAccounts') v = normalizeAccounts(v, current?.imapAccounts, legacy);
     if (['imapPort', 'smtpPort', 'fetchLimit', 'briefingDays', 'dailyAnalyzeLimit'].includes(k)) {
       v = Number(v) || defaults()[k];
     }

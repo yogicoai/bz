@@ -30,7 +30,7 @@ export async function POST(req) {
     const mails = await collections.mails();
 
     const learned = await learnSenderGroups();
-    const existing = (await listGroups()).map((g) => g.group);
+    const existing = (await listGroups()).groups.map((g) => g.group);
     const fromSettings = (settings.imapFolders || []).map(groupNameFromFolder);
     const knownGroups = [...new Set([...existing, ...fromSettings])].filter(Boolean);
 

@@ -59,7 +59,7 @@ const fmt = (d) =>
 export default async function GroupsPage() {
   const [{ connected, rows, error }, all] = await Promise.all([
     getGroupStats(),
-    listGroups().catch(() => []),
+    listGroups().then((g) => g.groups).catch(() => []),
   ]);
 
   if (!connected) {

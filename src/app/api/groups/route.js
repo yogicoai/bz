@@ -9,13 +9,14 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const [groups, learned] = await Promise.all([
+    const [g, learned] = await Promise.all([
       listGroups(),
       learnSenderGroups().catch(() => ({ size: 0 })),
     ]);
     return NextResponse.json({
       ok: true,
-      groups,
+      groups: g.groups,          // 전체 합산 (계정이 하나인 설치)
+      byAccount: g.byAccount,    // 계정별 (사이드바에서 계정 아래에 접어 넣는다)
       learnedSenders: learned.size || 0,
     });
   } catch (e) {

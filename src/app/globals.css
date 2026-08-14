@@ -413,6 +413,30 @@ code {
 .stat-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .stat-btn.is-active { outline-color: var(--accent); }
 
+/* ── 사이드바 2단 (메일 계정 → 그 안의 폴더) ── */
+.nav-caret {
+  flex: 0 0 20px;
+  border: none; background: none; padding: 0;
+  color: var(--muted); font-size: 11px; line-height: 1;
+  cursor: pointer; font-family: inherit;
+}
+.nav-caret:hover { color: var(--text); }
+
+.nav-sub {
+  /* 세로선으로 '이 계정에 속한 것'임을 보인다 — 들여쓰기만으로는 약하다 */
+  margin: 2px 0 6px 10px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+.nav-sub a {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 10px; border-radius: var(--radius-sm);
+  color: var(--text-2); font-size: 13px; margin-bottom: 1px;
+}
+.nav-sub a:hover { background: var(--panel-2); color: var(--text); }
+.nav-sub a.active { background: var(--accent-weak); color: var(--accent-text); font-weight: 700; }
+.nav-sub-empty { font-size: 12px; color: var(--muted); padding: 6px 10px; }
+
 /* ── 폰 전용 요소 — 넓은 화면에서는 존재하지 않는다 ── */
 .mobile-bar { display: none; }
 .nav-close { display: none; }

@@ -218,7 +218,9 @@ export async function listGroups() {
       { $match: { group: retired.length ? { $ne: null, $nin: retired } : { $ne: null } } },
       {
         $group: {
-          _id: '$group',
+          // 계정별로도 나눠 볼 수 있게 (accountId, group) 짝으로 센다.
+          // 계정 개념이 없던 시절 메일은 'main' 으로 본다.
+          _id: { group: '$group', accountId: { $ifNull: ['$accountId', 'main'] } },
           // 사이드바에 보이는 숫자. 누적 통수를 쓰면 577 처럼 커져서
           // 옆의 빨간 숫자(최근 한 달)와 기준이 어긋나고, 거래처를 눌렀을 때
           // 나오는 목록(기본 최근 한 달)과도 맞지 않는다. 같은 기간으로 통일한다.
@@ -251,8 +253,31 @@ export async function listGroups() {
       { $sort: { n: -1 } },
     ])
     .toArray();
+  const order = (a, b) => b.count - a.count || b.total - a.total;
+
+  // (1) 전체 합산 — 계정이 하나뿐인 설치에서 쓰는 평평한 목록
+  const merged = new Map();
+  for (const r of rows) {
+    const g = merged.get(r._id.group)
+      || { group: r._id.group, count: 0, total: 0, fresh: 0, last: null };
+    g.count += r.n; g.total += r.total; g.fresh += r.fresh;
+    if (!g.last || r.last > g.last) g.last = r.last;
+    merged.set(r._id.group, g);
+  }
+
+  // (2) 계정별 — 사이드바에서 '이카운트 / Gmail / 네이버' 아래에 폴더를 접어 넣는다
+  const byAccount = new Map();
+  for (const r of rows) {
+    const list = byAccount.get(r._id.accountId) || [];
+    list.push({ group: r._id.group, count: r.n, total: r.total, fresh: r.fresh, last: r.last });
+    byAccount.set(r._id.accountId, list);
+  }
+
   // 최근 한 달에 아무것도 없는 거래처도 목록에는 남긴다 (눌러서 과거를 볼 수 있어야 한다)
-  return rows
-    .map((r) => ({ group: r._id, count: r.n, total: r.total, fresh: r.fresh, last: r.last }))
-    .sort((a, b) => b.count - a.count || b.total - a.total);
+  return {
+    groups: [...merged.values()].sort(order),
+    byAccount: Object.fromEntries(
+      [...byAccount].map(([id, list]) => [id, list.sort(order)]),
+    ),
+  };
 }
