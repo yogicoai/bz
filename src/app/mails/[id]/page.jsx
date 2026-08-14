@@ -385,10 +385,18 @@ export default function MailDetailPage({ params }) {
       {/* ── 답장 ── */}
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="card-title">답장</div>
-        {dryRun && (
+        {dryRun ? (
+          <div className="card" style={{ borderColor: 'var(--warn)', marginBottom: 12, background: 'var(--warn-weak)' }}>
+            <b style={{ fontSize: 13 }}>지금은 시험 모드입니다 — 발송을 눌러도 메일이 나가지 않습니다</b>
+            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              내용만 서버 기록에 남습니다. 실제로 보내려면 환경변수{' '}
+              <code>MAIL_DRY_RUN</code> 을 <code>0</code> 으로 바꾸세요.
+            </div>
+          </div>
+        ) : (
           <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-            현재 <b>DRY RUN</b> 모드입니다 — 발송 버튼을 눌러도 실제로 나가지 않고 서버 콘솔에만 기록됩니다.
-            실제 발송하려면 <code>.env.local</code> 의 <code>MAIL_DRY_RUN</code> 을 <code>0</code> 으로 바꾸세요.
+            발송하기를 누르면 <b>실제로 메일이 나갑니다.</b> 누르기 전에 확인 창에서
+            받는 사람과 내용을 다시 보여 드립니다.
           </div>
         )}
 
