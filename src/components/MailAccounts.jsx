@@ -77,10 +77,14 @@ export default function MailAccounts({ accounts, onChange }) {
   const set = (i, patch) => onChange(accounts.map((a, n) => (n === i ? { ...a, ...patch } : a)));
 
   function add() {
+    // 처음 뜨는 서비스와 서버 주소가 어긋나면 안 된다 —
+    // 화면은 Gmail 이라고 하는데 서버 칸이 비어 있으면 무엇을 넣어야 할지 알 수 없다.
+    const first = 'gmail';
+    const p = PRESETS[first];
     onChange([...accounts, {
       id: `acc${Date.now().toString(36)}`,
-      label: '', host: '', port: 993, secure: true,
-      user: '', pass: '', folders: ['INBOX'], enabled: true, _preset: 'gmail',
+      label: '', host: p.host, port: p.port, secure: true,
+      user: '', pass: '', folders: ['INBOX'], enabled: true, _preset: first,
     }]);
   }
 
