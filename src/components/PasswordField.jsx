@@ -24,6 +24,8 @@ export default function PasswordField({
   style,
   autoComplete = 'new-password',
   id,
+  /** 비밀번호 칸에서 Enter 를 치면 바로 저장되게 */
+  onEnter,
 }) {
   const [editing, setEditing] = useState(false);
   const ref = useRef(null);
@@ -66,6 +68,7 @@ export default function PasswordField({
         placeholder={placeholder}
         autoComplete={autoComplete}
         onChange={(e) => onValueChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && onEnter) { e.preventDefault(); onEnter(); } }}
       />
       {saved && (
         <button

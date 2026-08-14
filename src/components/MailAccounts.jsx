@@ -257,6 +257,7 @@ export default function MailAccounts({
                   saved={Boolean(a.passSet)}
                   placeholder={preset === 'gmail' ? '앱 비밀번호 16자리' : ''}
                   style={inp}
+                  onEnter={onSave}
                 />
               </div>
             </div>
@@ -272,11 +273,19 @@ export default function MailAccounts({
               </details>
             )}
 
+            {/* 저장은 이 카드 안에도 둔다.
+                비밀번호를 고친 자리에서 저장이 보이지 않으면, 폴더 목록을 한참
+                지나 페이지 맨 아래까지 내려가야 한다 — 저장한 줄 알고 나가게 된다. */}
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <button type="button" className="btn secondary sm"
                 onClick={() => test(i)} disabled={testing === i || !a.host || !a.user}>
                 {testing === i ? <><Spinner /> 확인 중…</> : '연결 테스트'}
               </button>
+              {onSave && (
+                <button type="button" className="btn sm" onClick={onSave} disabled={saving}>
+                  {saving ? <><Spinner /> 저장 중…</> : '저장'}
+                </button>
+              )}
               {r && (
                 <span style={{ fontSize: 13, color: r.ok ? 'var(--good)' : 'var(--bad)' }}>
                   {r.ok ? r.message : `실패 — ${r.error}`}
