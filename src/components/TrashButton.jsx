@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Modal from '@/components/Modal';
+import { Spinner } from '@/components/Loading';
 
 /**
  * 메일을 메일함의 휴지통으로 옮기는 버튼.
@@ -41,40 +43,38 @@ export default function TrashButton({ mailId, subject, size = 'sm', label = '�
         {label}
       </button>
 
-      {ask && (
-        <div className="modal-backdrop" onClick={() => !busy && setAsk(false)}>
-          <div className="modal" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
-            <div className="card-title" style={{ fontSize: 15 }}>휴지통으로 옮길까요?</div>
+      {/* 창은 Modal 이 body 밑에 그린다 — 목록 행의 opacity 를 물려받아
+          창이 비쳐 보이던 문제를 막는다 */}
+      <Modal open={ask} onClose={() => !busy && setAsk(false)}>
+        <div className="card-title" style={{ fontSize: 15 }}>휴지통으로 옮길까요?</div>
 
-            {subject && (
-              <div className="card" style={{ background: 'var(--panel-2)', marginBottom: 12 }}>
-                <div style={{ fontSize: 13, overflowWrap: 'anywhere' }}>{subject}</div>
-              </div>
-            )}
+        {subject && (
+          <div className="card" style={{ background: 'var(--panel-2)', marginBottom: 12 }}>
+            <div style={{ fontSize: 13, overflowWrap: 'anywhere' }}>{subject}</div>
+          </div>
+        )}
 
-            <div style={{ fontSize: 13, lineHeight: 1.9, color: 'var(--text-2)' }}>
-              메일함에서도 <b>휴지통으로 이동</b>합니다.
-              지우는 것이 아니라 옮기는 것이라, <b>웹메일 휴지통에서 되돌릴 수 있습니다.</b>
-              <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                이 화면에서는 목록에서 빠지고, 무엇을 옮겼는지는 기록으로 남습니다.
-              </div>
-            </div>
-
-            {err && (
-              <div className="card" style={{ borderColor: 'var(--bad)', marginTop: 12 }}>
-                <div style={{ fontSize: 13 }}>{err}</div>
-              </div>
-            )}
-
-            <div className="row" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
-              <button className="btn secondary" onClick={() => setAsk(false)} disabled={busy}>취소</button>
-              <button className="btn danger" onClick={run} disabled={busy}>
-                {busy ? '옮기는 중…' : '휴지통으로 옮기기'}
-              </button>
-            </div>
+        <div style={{ fontSize: 13, lineHeight: 1.9, color: 'var(--text-2)' }}>
+          메일함에서도 <b>휴지통으로 이동</b>합니다.
+          지우는 것이 아니라 옮기는 것이라, <b>웹메일 휴지통에서 되돌릴 수 있습니다.</b>
+          <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+            이 화면에서는 목록에서 빠지고, 무엇을 옮겼는지는 기록으로 남습니다.
           </div>
         </div>
-      )}
+
+        {err && (
+          <div className="card" style={{ borderColor: 'var(--bad)', marginTop: 12 }}>
+            <div style={{ fontSize: 13 }}>{err}</div>
+          </div>
+        )}
+
+        <div className="row" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
+          <button className="btn secondary" onClick={() => setAsk(false)} disabled={busy}>취소</button>
+          <button className="btn danger" onClick={run} disabled={busy}>
+            {busy ? <><Spinner /> 옮기는 중…</> : '휴지통으로 옮기기'}
+          </button>
+        </div>
+      </Modal>
     </>
   );
 }
