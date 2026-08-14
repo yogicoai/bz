@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState, use } from 'react';
+import { useCallback, useEffect, useState, use, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   STATUSES, classificationLabel, statusLabel, langLabel,
   ddayLabel, ddayTone, urgencyLabel,
@@ -21,9 +22,26 @@ function periodLabel(f) {
 const fmtDay = (d) =>
   d ? new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit' }) : '-';
 
-export default function GroupPage({ params }) {
+function GroupInner({ params }) {
   const { group: raw } = use(params);
   const group = decodeURIComponent(raw);
+
+  // 사이드바에서 '이 계정의 이 폴더'로 들어온 경우.
+  // Gmail·네이버를 함께 쓰면 같은 이름의 폴더가 두 메일함에 있을 수 있어,
+  // 계정을 지정하지 않으면 서로 다른 메일함의 메일이 한 표에 섞인다.
+  const sp = useSearchParams();
+  const accountId = sp.get('account') || '';
+  const [accountLabel, setAccountLabel] = useState('');
+
+  useEffect(() => {
+    if (!accountId) { setAccountLabel(''); return; }
+    fetch('/api/accounts').then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) return;
+        setAccountLabel((r.accounts || []).find((a) => a.id === accountId)?.label || '');
+      })
+      .catch(() => {});
+  }, [accountId]);
 
   const [items, setItems] = useState([]);
   const [count, setCount] = useState(0);
@@ -43,6 +61,7 @@ export default function GroupPage({ params }) {
     setBusy(true); setErr('');
     try {
       const qs = new URLSearchParams({ group, limit: '200' });
+      if (accountId) qs.set('accountId', accountId);
       // 달력으로 직접 지정한 값이 있으면 그것이 우선한다
       if (f.from || f.to) {
         if (f.from) qs.set('since', new Date(`${f.from}T00:00:00+09:00`).toISOString());
@@ -59,7 +78,7 @@ export default function GroupPage({ params }) {
       setItems(r.items); setCount(r.count);
     } catch (e) { setErr(String(e.message || e)); }
     setBusy(false);
-  }, [group, f]);
+  }, [group, f, accountId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -105,10 +124,15 @@ export default function GroupPage({ params }) {
 
   return (
     <>
-      <Link href="/groups" className="muted" style={{ fontSize: 13 }}>← 거래처 전체</Link>
+      {accountId
+        ? <Link href={`/accounts/${encodeURIComponent(accountId)}`} className="muted" style={{ fontSize: 13 }}>
+            ← {accountLabel || '이 메일함'}
+          </Link>
+        : <Link href="/groups" className="muted" style={{ fontSize: 13 }}>← 거래처 전체</Link>}
 
       <h1 className="page-title" style={{ marginTop: 8 }}>📁 {group}</h1>
       <p className="page-sub">
+        {accountLabel && <><b>{accountLabel}</b>{' · '}</>}
         {periodLabel(f)} {count.toLocaleString()}통 · 아직 볼 것 {open.length}통
         {' — '}읽고 판단이 끝난 건은 <b>왼쪽 체크박스</b>를 누르면 검토 완료로 표시됩니다.
       </p>
@@ -260,5 +284,14 @@ function Stat({ label, value, sub, tone, active, onClick }) {
       <div className="kpi">{value.toLocaleString()}</div>
       {sub && <div className="kpi-sub">{sub}</div>}
     </button>
+  );
+}
+
+// useSearchParams 를 쓰는 화면은 Suspense 로 감싸야 한다 (Next App Router 규칙)
+export default function GroupPage({ params }) {
+  return (
+    <Suspense fallback={<div className="empty">불러오는 중…</div>}>
+      <GroupInner params={params} />
+    </Suspense>
   );
 }

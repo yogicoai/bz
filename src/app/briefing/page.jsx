@@ -41,6 +41,8 @@ function BriefingInner() {
   const [apiKeySet, setApiKeySet] = useState(true);
   // 위쪽 숫자 카드를 눌러 목록을 좁힌다 ('all' 이면 전체)
   const [view, setView] = useState('all');
+  // 지난 미처리 건 펼침 여부 (기본은 접어 둔다 — 오늘 것에 먼저 집중)
+  const [showMissed, setShowMissed] = useState(false);
 
   useEffect(() => {
     fetch('/api/estimate').then((r) => r.json())
@@ -71,10 +73,9 @@ function BriefingInner() {
     const done = ['replied', 'archived', 'ignored'].includes(mail.status);
     const next = done ? 'reviewing' : 'archived';
     // 낙관적 반영 — 체크 리듬이 끊기지 않도록
-    setB((p) => ({
-      ...p,
-      items: p.items.map((m) => (m._id === mail._id ? { ...m, status: next } : m)),
-    }));
+    // 오늘 목록과 '지난 미처리' 목록 어느 쪽에서 눌러도 즉시 반영되어야 한다
+    const flip = (list) => (list || []).map((m) => (m._id === mail._id ? { ...m, status: next } : m));
+    setB((p) => ({ ...p, items: flip(p.items), missed: flip(p.missed) }));
     try {
       const r = await fetch(`/api/mails/${mail._id}`, {
         method: 'PATCH',
@@ -212,6 +213,29 @@ function BriefingInner() {
             </div>
           ) : (
             shown.map((m, i) => <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)} />)
+          )}
+
+          {/* 아직 손대지 않은 지난 건.
+              하루치만 보여주면 어제 온 것을 오늘 열었을 때 화면이 비어
+              "처리할 게 없다"로 읽힌다. 실제로는 밀려 있는데도 그렇다. */}
+          {view === 'all' && b.missedTotal > 0 && (
+            <div style={{ marginTop: 22 }}>
+              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+                <div>
+                  <b style={{ fontSize: 15 }}>아직 처리하지 않은 지난 제안 {b.missedTotal}건</b>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                    최근 한 달 안에 왔지만 아직 체크하지 않은 건입니다
+                    {b.missedNeedsReply > 0 && <> · 그중 답변 필요 {b.missedNeedsReply}건</>}
+                  </div>
+                </div>
+                <button className="btn secondary sm" onClick={() => setShowMissed((v) => !v)}>
+                  {showMissed ? '접기' : '펼쳐 보기'}
+                </button>
+              </div>
+              {showMissed && b.missed.map((m, i) => (
+                <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)} />
+              ))}
+            </div>
           )}
         </>
       )}

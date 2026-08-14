@@ -37,12 +37,19 @@ export default function Sidebar({ open = false, onClose }) {
   // 계정 아래 폴더를 펼쳐 둔 계정 id (한 번에 하나만)
   const [expanded, setExpanded] = useState(null);
 
-  // 오늘 처리할 제안 건수 — 브리핑 메뉴 배지
+  // 오늘 처리할 제안 건수 — 브리핑 메뉴 배지.
+  //
+  // 브리핑 화면과 **같은 기준**으로 물어야 한다. 날짜를 빼고 부르면 서버가
+  // '지금부터 24시간'을 보는데, 화면은 '오늘 하루(00시~24시)'를 봐서
+  // 배지 4 / 화면 0 처럼 어긋나 보였다.
   useEffect(() => {
     let alive = true;
-    fetch('/api/briefing?countOnly=true')
+    const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+    fetch(`/api/briefing?countOnly=true&date=${today}&days=1`)
       .then((r) => r.json())
-      .then((r) => { if (alive && r.ok) setTodayCount(r.total); })
+      // 오늘 것 + 아직 손대지 않은 지난 건. 오늘 온 게 0통이어도 밀린 것이 있으면
+      // 배지가 0 이 되어 "할 일 없음" 으로 읽히면 안 된다.
+      .then((r) => { if (alive && r.ok) setTodayCount((r.total || 0) + (r.missedTotal || 0)); })
       .catch(() => {});
     return () => { alive = false; };
   }, [path]); // 화면 이동 시 갱신 (체크 처리하면 줄어들도록)
@@ -108,16 +115,24 @@ export default function Sidebar({ open = false, onClose }) {
             })}
           </nav>
 
-          {/* 메일 계정 → 그 안의 폴더. 계정을 여러 개 등록했을 때만 2단이 된다.
-              한 곳만 쓰면 계정 줄이 군더더기라 아래의 평평한 목록을 그대로 쓴다. */}
-          {gi === 0 && accounts.length > 1 && (
+          {/* 메일 계정 → 그 안의 폴더.
+              계정이 하나뿐이어도 같은 구조로 둔다 — 나중에 Gmail·네이버를 더해도
+              화면 모양이 달라지지 않고, 폴더가 어느 메일함 것인지가 늘 드러난다.
+              계정이 하나면 기본으로 펼쳐 두어 클릭이 늘지 않게 한다. */}
+          {gi === 0 && accounts.length > 0 && (
             <div style={{ marginTop: 18 }}>
-              <div className="nav-group-title">메일 계정</div>
+              <div className="nav-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>메일 계정 <span style={{ fontWeight: 400 }}>· 최근 한 달</span></span>
+                <Link href="/groups" className="muted" style={{ fontSize: 11, fontWeight: 600 }}>전체</Link>
+              </div>
               <nav className="nav">
                 {accounts.map((a) => {
                   const href = `/accounts/${encodeURIComponent(a.id)}`;
                   const mine = byAccount[a.id] || [];
-                  const open = expanded === a.id || decodeURIComponent(path).startsWith(href);
+                  // 계정이 하나뿐이면 접을 이유가 없으므로 펼친 채로 시작한다
+                  const open = expanded === a.id
+                    || decodeURIComponent(path).startsWith(href)
+                    || (expanded === null && accounts.length === 1);
                   return (
                     <div key={a.id}>
                       <div style={{ display: 'flex', alignItems: 'stretch' }}>
@@ -163,48 +178,6 @@ export default function Sidebar({ open = false, onClose }) {
                         )
                       )}
                     </div>
-                  );
-                })}
-              </nav>
-            </div>
-          )}
-
-          {/* '관리' 바로 아래에 거래처 목록을 붙인다 — 웹메일의 '내 메일함' 과 같은 위치감.
-              계정을 여러 개 쓰면 위에서 계정별로 이미 나눠 보여주므로 여기서는 생략한다. */}
-          {gi === 0 && accounts.length <= 1 && groups.length > 0 && (
-            <div style={{ marginTop: 18 }}>
-              <div className="nav-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>거래처 <span style={{ fontWeight: 400 }}>· 최근 한 달</span></span>
-                <Link href="/groups" className="muted" style={{ fontSize: 11, fontWeight: 600 }}>전체</Link>
-              </div>
-              <nav className="nav">
-                {groups.map((g2) => {
-                  const href = `/groups/${encodeURIComponent(g2.group)}`;
-                  return (
-                    <Link key={g2.group} href={href}
-                      className={decodeURIComponent(path) === decodeURIComponent(href) ? 'active' : ''}>
-                      <span className="label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <span aria-hidden style={{ marginRight: 8 }}>📁</span>
-                        {g2.group}
-                      </span>
-                      {/* 아직 손대지 않은 건이 있으면 그 수를 강조하고, 없으면 누적 통수만 흐리게.
-                          누적만 보여주면 확인해도 숫자가 그대로라 '볼 것이 있다'는 신호가 되지 않는다. */}
-                      {/* 숫자는 모두 최근 한 달 기준. 빨간색은 아직 안 본 것,
-                          회색은 최근 한 달에 오간 통수(다 봤거나 볼 것이 없을 때). */}
-                      {g2.fresh > 0
-                        ? (
-                          <span className="nav-badge"
-                            title={`최근 한 달 확인하지 않은 메일 ${g2.fresh}건 · 최근 한 달 ${g2.count}통 · 전체 ${(g2.total ?? g2.count).toLocaleString()}통`}>
-                            {g2.fresh}
-                          </span>
-                        )
-                        : (
-                          <span className="nav-count"
-                            title={`최근 한 달 ${g2.count}통 · 전체 ${(g2.total ?? g2.count).toLocaleString()}통 · 볼 것 없음`}>
-                            {g2.count}
-                          </span>
-                        )}
-                    </Link>
                   );
                 })}
               </nav>

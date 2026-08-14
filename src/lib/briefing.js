@@ -12,6 +12,19 @@ export const PROPOSAL_CLASSES = ['b2b', 'inquiry', 'partner', 'unknown'];
 /** 브리핑에서 '처리됨'으로 보는 상태 */
 const DONE_STATUSES = ['replied', 'archived', 'ignored'];
 
+/** '놓친 것'을 얼마나 거슬러 볼지 — 너무 넓히면 옛 미처리가 산더미로 쌓여 손을 못 댄다 */
+const MISSED_LOOKBACK_DAYS = 30;
+
+/** 목록에 필요한 필드만 (본문은 화면에서 쓰지 않는다) */
+const PROJECTION = {
+  subject: 1, 'translation.subject': 1, from: 1, date: 1, receivedAt: 1,
+  status: 1, classification: 1, lang: 1, memo: 1, group: 1, groupBy: 1,
+  'analysis.topic': 1, 'analysis.summary': 1, 'analysis.keyPoints': 1,
+  'analysis.intent': 1, 'analysis.suggestedAction': 1, 'analysis.needsReply': 1,
+  'analysis.deadline': 1, 'analysis.deadlineType': 1, 'analysis.urgency': 1,
+  'analysis.method': 1,
+};
+
 /** KST 기준 하루의 시작·끝 (서버 시간대와 무관하게 동작해야 한다) */
 export function kstDayRange(dateStr) {
   const base = dateStr ? new Date(`${dateStr}T00:00:00+09:00`) : new Date();
@@ -66,16 +79,7 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
     if (!includeDone) query.status = { $nin: DONE_STATUSES };
 
     const items = await mails
-      .find(query, {
-        projection: {
-          subject: 1, 'translation.subject': 1, from: 1, date: 1, receivedAt: 1,
-          status: 1, classification: 1, lang: 1, memo: 1, group: 1, groupBy: 1,
-          'analysis.topic': 1, 'analysis.summary': 1, 'analysis.keyPoints': 1,
-          'analysis.intent': 1, 'analysis.suggestedAction': 1, 'analysis.needsReply': 1,
-          'analysis.deadline': 1, 'analysis.deadlineType': 1, 'analysis.urgency': 1,
-          'analysis.method': 1,
-        },
-      })
+      .find(query, { projection: PROJECTION })
       .sort({ 'analysis.urgency': 1, date: -1 })
       .limit(200)
       .toArray();
@@ -94,6 +98,24 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
 
     const ser = items.map((m) => ({ ...m, _id: String(m._id) }));
 
+    // 이 기간보다 앞에 왔는데 아직 손대지 않은 제안 = '놓친 것'.
+    //
+    // 하루치만 보여주면, 어제 온 건을 오늘 열었을 때 화면이 0건으로 비어
+    // "처리할 게 없다"로 읽힌다. 실제로는 밀려 있는데도 그렇다.
+    // 사이드바 배지와 화면 숫자가 어긋나 보이던 원인도 이것이다.
+    const missed = includeDone ? [] : await mails
+      .find({
+        date: { $gte: new Date(from.getTime() - MISSED_LOOKBACK_DAYS * 86400_000), $lt: from },
+        classification: { $in: PROPOSAL_CLASSES },
+        direction: { $ne: 'out' },
+        status: { $nin: DONE_STATUSES },
+      }, { projection: PROJECTION })
+      .sort({ date: -1 })
+      .limit(100)
+      .toArray();
+
+    const missedSer = missed.map((m) => ({ ...m, _id: String(m._id) }));
+
     return {
       connected: true,
       date: date || kstDateString(),
@@ -103,6 +125,10 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
       withDeadline: ser.filter((m) => m.analysis?.deadline).length,
       unanalyzed: ser.filter((m) => m.analysis?.method !== 'ai').length,
       items: ser,
+      // 놓친 것 — 화면에서 접어 두고, 사이드바 배지는 이것까지 합쳐 센다
+      missedTotal: missedSer.length,
+      missedNeedsReply: missedSer.filter((m) => m.analysis?.needsReply).length,
+      missed: missedSer,
     };
   } catch (e) {
     return { connected: false, error: String(e?.message || e) };

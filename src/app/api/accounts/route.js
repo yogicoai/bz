@@ -17,11 +17,9 @@ export async function GET() {
     const settings = await getSettings();
     const configured = settings.imapAccounts || [];
 
-    // 등록된 계정이 없으면(대표님처럼 단일 계정) 계정 축을 쓰지 않는다
-    if (!configured.length) {
-      return NextResponse.json({ ok: true, accounts: [], multi: false });
-    }
-
+    // 계정을 따로 등록하지 않았어도 '지금 쓰는 메일함' 하나는 항상 돌려준다.
+    // 화면은 계정 → 폴더 한 가지 구조만 그리면 되고, 나중에 Gmail·네이버를
+    // 더해도 모양이 바뀌지 않는다.
     const mails = await collections.mails();
     const since = new Date(Date.now() - FRESH_DAYS * 86400000);
 
@@ -58,7 +56,8 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ ok: true, accounts, multi: true });
+    // multi = 사용자가 계정을 실제로 등록했는지 (설명 문구 등에서 쓴다)
+    return NextResponse.json({ ok: true, accounts, multi: configured.length > 0 });
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
   }
