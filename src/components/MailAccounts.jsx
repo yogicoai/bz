@@ -257,7 +257,7 @@ export default function MailAccounts({
                   saved={Boolean(a.passSet)}
                   placeholder={preset === 'gmail' ? '앱 비밀번호 16자리' : ''}
                   style={inp}
-                  onEnter={onSave}
+                  onApply={onSave}
                 />
               </div>
             </div>

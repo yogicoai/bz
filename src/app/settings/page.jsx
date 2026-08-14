@@ -66,8 +66,14 @@ export default function SettingsPage() {
     setF((p) => ({ ...p, [k]: v }));
   };
 
+  /**
+   * @returns {Promise<boolean>} 저장이 실제로 됐는지.
+   *   비밀번호 칸의 [확인] 이 이 값을 보고 입력칸을 닫을지 정한다 —
+   *   실패했는데 '변경되었습니다' 가 뜨면 안 된다.
+   */
   async function save() {
     setBusy(true); setMsg(''); setErr('');
+    let ok = true;
     try {
       const r = await fetch('/api/settings', {
         method: 'POST',
@@ -118,8 +124,9 @@ export default function SettingsPage() {
         }
         loadStatus();
       }
-    } catch (e) { setErr(String(e.message || e)); }
+    } catch (e) { setErr(String(e.message || e)); ok = false; }
     setBusy(false);
+    return ok;
   }
 
 
@@ -199,6 +206,7 @@ export default function SettingsPage() {
               onValueChange={(v) => setF((p) => ({ ...p, smtpPass: v }))}
               saved={Boolean(f.smtpPassSet)}
               style={inp}
+              onApply={save}
             />
           </Field>
         </div>
