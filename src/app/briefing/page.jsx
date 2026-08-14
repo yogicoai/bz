@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
+import AccountAlert from '@/components/AccountAlert';
 import {
   classificationLabel, deadlineTypeLabel, urgencyLabel, ddayLabel, ddayTone, langLabel,
 } from '@/lib/labels';
@@ -123,6 +124,8 @@ function BriefingInner() {
           </p>
         </div>
       </div>
+
+      <AccountAlert />
 
       {msg && <div className="card" style={{ borderColor: 'var(--good)', marginBottom: 14 }}>{msg}</div>}
       {err && <div className="card" style={{ borderColor: 'var(--bad)', marginBottom: 14 }}>{err}</div>}

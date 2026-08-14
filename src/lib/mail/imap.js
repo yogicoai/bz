@@ -35,11 +35,45 @@ function buildClient(s) {
   });
 }
 
+/**
+ * imapflow 의 오류를 사람이 읽을 수 있는 말로 바꾼다.
+ *
+ * 인증에 실패하면 그냥 'Command failed' 만 올라온다. 그 말로는 비밀번호가
+ * 틀린 건지, IMAP 이 꺼진 건지, 서버 주소가 틀린 건지 알 수 없어서
+ * 사용자가 다음에 무엇을 해야 할지 판단할 수 없다.
+ */
+function friendlyImapError(e, settings) {
+  const host = String(settings?.imapHost || '');
+  const raw = String(e?.responseText || e?.message || e);
+
+  if (e?.authenticationFailed || /authentication failed/i.test(raw)) {
+    const hint = /gmail/i.test(host)
+      ? 'Gmail 은 계정 비밀번호가 아니라 앱 비밀번호 16자리를 넣어야 하고, 2단계 인증과 IMAP 사용이 켜져 있어야 합니다.'
+      : /naver/i.test(host)
+        ? '네이버 메일 → 환경설정 → POP3/IMAP 설정에서 IMAP 사용을 켜야 합니다.'
+        : /ecount/i.test(host)
+          ? '이카운트는 웹메일 → 개인기능설정 → 외부연동설정에서 "메일 클라이언트 사용"을 켜야 합니다.'
+          : '메일함 설정에서 IMAP 사용이 켜져 있는지 확인하세요.';
+    return new Error(`아이디 또는 비밀번호가 맞지 않습니다. ${hint}`);
+  }
+  if (/ENOTFOUND|EAI_AGAIN/i.test(raw)) {
+    return new Error(`수신 서버 주소를 찾을 수 없습니다 (${host}). 주소를 다시 확인하세요.`);
+  }
+  if (/ECONNREFUSED|ETIMEDOUT|timeout/i.test(raw)) {
+    return new Error(`수신 서버에 연결하지 못했습니다 (${host}). 주소·포트를 확인하세요.`);
+  }
+  return e;
+}
+
 /** 연결 후 콜백 실행, 성공/실패와 무관하게 logout 보장 */
 async function withClient(settings, fn) {
   requireConfig(settings);
   const client = buildClient(settings);
-  await client.connect();
+  try {
+    await client.connect();
+  } catch (e) {
+    throw friendlyImapError(e, settings);
+  }
   try {
     return await fn(client);
   } finally {

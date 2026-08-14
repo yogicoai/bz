@@ -13,12 +13,22 @@ export default function SettingsPage() {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  // 이 설치에서 여러 메일함을 쓸지 (환경변수 MULTI_ACCOUNT=1 인 프로젝트만)
+  const [features, setFeatures] = useState({});
+  // 계정별 연결 상태 (마지막 수집이 성공했는지)
+  const [status, setStatus] = useState([]);
+
+  const loadStatus = () => fetch('/api/accounts')
+    .then((r) => r.json())
+    .then((r) => { if (r.ok) setStatus(r.accounts || []); })
+    .catch(() => {});
 
   useEffect(() => {
     fetch('/api/settings')
       .then((r) => r.json())
       .then((r) => {
         if (!r.ok) throw new Error(r.error);
+        setFeatures(r.features || {});
         const s = r.settings;
         // 계정 목록을 아직 안 쓰던 설치는, 예전 자리(imapHost/imapUser)에 있던
         // 값을 계정 카드 하나로 보여준다. id 를 'main' 으로 두면 이미 쌓인
@@ -46,6 +56,7 @@ export default function SettingsPage() {
         });
       })
       .catch((e) => setErr(String(e.message || e)));
+    loadStatus();
   }, []);
 
   const set = (k) => (e) => {
@@ -75,6 +86,36 @@ export default function SettingsPage() {
           return { ...a, pass: '', _preset: prev?._preset, _folders: prev?._folders };
         }),
       }));
+
+      // 저장 직후 각 계정에 실제로 붙어 본다.
+      // 비밀번호를 잘못 넣고 저장하면 화면에는 '저장했습니다' 만 뜨고
+      // 메일은 조용히 안 들어온다 — 그 자리에서 알려주는 편이 맞다.
+      const list = r.settings.imapAccounts || [];
+      if (list.length) {
+        setMsg(`저장했습니다. 계정 ${list.length}곳 연결을 확인하는 중…`);
+        const checks = await Promise.all(list.map(async (a) => {
+          try {
+            const t = await fetch('/api/test/imap', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ account: { ...a, pass: '' } }),
+            }).then((x) => x.json());
+            return { label: a.label || a.user, ok: t.ok, error: t.error };
+          } catch (e2) {
+            return { label: a.label || a.user, ok: false, error: String(e2.message || e2) };
+          }
+        }));
+        const bad = checks.filter((c) => !c.ok);
+        if (bad.length) {
+          setMsg('');
+          setErr(`저장은 됐지만 ${bad.length}곳이 연결되지 않습니다 — `
+            + bad.map((c) => `${c.label}: ${c.error}`).join(' / ')
+            + '  이 계정은 메일을 가져오지 못합니다. 주소·비밀번호를 다시 확인하세요.');
+        } else {
+          setMsg(`저장했습니다. 계정 ${checks.length}곳 모두 연결 정상입니다.`);
+        }
+        loadStatus();
+      }
     } catch (e) { setErr(String(e.message || e)); }
     setBusy(false);
   }
@@ -96,6 +137,10 @@ export default function SettingsPage() {
         <MailAccounts
           accounts={f.imapAccounts || []}
           onChange={(next) => setF((p) => ({ ...p, imapAccounts: next }))}
+          allowAdd={Boolean(features.multiAccount)}
+          onSave={save}
+          saving={busy}
+          status={status}
         />
       </Section>
 

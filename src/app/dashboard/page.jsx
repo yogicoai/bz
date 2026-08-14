@@ -3,6 +3,7 @@ import { getDashboard, getSyncSummary } from '@/lib/stats';
 import { classificationLabel } from '@/lib/labels';
 import MailRow from '@/components/MailRow';
 import TodayAlert from '@/components/TodayAlert';
+import AccountAlert from '@/components/AccountAlert';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,8 @@ export default async function DashboardPage() {
         <b>지금 전체가 어떤 상태인지</b> 한눈에 보는 화면입니다.
         오늘의 브리핑이 &ldquo;오늘 처리할 일&rdquo;이라면, 여기는 &ldquo;밀린 것은 없나, 놓친 것은 없나&rdquo;를 확인하는 자리입니다.
       </p>
+
+      <AccountAlert />
 
       {/* 진입 시 "오늘 처리할 메일" 알림 — 하루 한 번 뜨고, 닫으면 상단 배너로 남는다 */}
       <TodayAlert />

@@ -70,9 +70,23 @@ const guessPreset = (host = '') => {
   return 'custom';
 };
 
-export default function MailAccounts({ accounts, onChange }) {
+/** 마지막 수집이 어땠는지 — 색과 말로 한눈에 */
+function HealthBadge({ h }) {
+  if (!h) return null;
+  if (h.health === 'fail') {
+    return <span className="badge high" title={h.lastError || ''}>연결 실패</span>;
+  }
+  if (h.health === 'ok') return <span className="badge replied">연결 정상</span>;
+  if (!h.passSet) return <span className="badge mid">비밀번호 없음</span>;
+  return <span className="badge">아직 수집 전</span>;
+}
+
+export default function MailAccounts({
+  accounts, onChange, allowAdd = false, onSave, saving = false, status = [],
+}) {
   const [testing, setTesting] = useState(null);
   const [result, setResult] = useState({});
+  const health = new Map((status || []).map((s) => [s.id, s]));
 
   const set = (i, patch) => onChange(accounts.map((a, n) => (n === i ? { ...a, ...patch } : a)));
 
@@ -120,13 +134,10 @@ export default function MailAccounts({ accounts, onChange }) {
 
   return (
     <div>
-      {!accounts.length && (
+      {allowAdd && (
         <div className="muted" style={{ fontSize: 13, lineHeight: 1.8, marginBottom: 12 }}>
-          아직 등록한 계정이 없습니다. 지금은 위쪽 <b>메일 수신(IMAP)</b> 에 적힌
-          계정 한 곳만 가져옵니다.<br />
-          Gmail·네이버처럼 <b>다른 메일함도 함께 보고 싶으시면</b> 아래에서 계정을 추가하세요.
-          하나라도 추가하면 그때부터는 <b>여기 등록한 계정들만</b> 수집합니다 —
-          지금 쓰시던 메일함도 반드시 함께 등록해 주세요.
+          Gmail·네이버처럼 <b>다른 메일함도 함께</b> 가져오려면 아래 <b>+ 메일 계정 추가</b>를 누르세요.
+          여기 등록한 계정들만 수집하므로, <b>지금 쓰시던 메일함도 목록에 남아 있어야 합니다.</b>
         </div>
       )}
 
@@ -137,7 +148,10 @@ export default function MailAccounts({ accounts, onChange }) {
         return (
           <div key={a.id || i} className="card" style={{ background: 'var(--panel-2)', marginBottom: 12 }}>
             <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-              <b style={{ fontSize: 14 }}>{a.label || a.user || `계정 ${i + 1}`}</b>
+              <div className="row" style={{ gap: 8 }}>
+                <b style={{ fontSize: 14 }}>{a.label || a.user || `계정 ${i + 1}`}</b>
+                <HealthBadge h={health.get(a.id)} />
+              </div>
               <div className="row" style={{ gap: 8 }}>
                 <label className={`chip ${a.enabled !== false ? 'on' : ''}`}>
                   <input type="checkbox" checked={a.enabled !== false}
@@ -219,6 +233,21 @@ export default function MailAccounts({ accounts, onChange }) {
               )}
             </div>
 
+            {/* 마지막 수집이 실패했으면 그 자리에서 이유를 보여준다.
+                "메일이 안 오네" 하고 한참 뒤에 알아채는 것을 막는다. */}
+            {health.get(a.id)?.health === 'fail' && (
+              <div className="card" style={{ marginTop: 10, borderColor: 'var(--bad)', background: 'var(--bad-weak)' }}>
+                <b style={{ fontSize: 13 }}>이 계정에서 메일을 가져오지 못하고 있습니다</b>
+                <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-2)' }}>
+                  {health.get(a.id).lastError}
+                </div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  비밀번호가 바뀌었거나(Gmail 은 앱 비밀번호), 메일함에서 IMAP 사용이 꺼졌을 수 있습니다.
+                  값을 고친 뒤 <b>연결 테스트</b>로 확인하고 저장하세요.
+                </div>
+              </div>
+            )}
+
             {/* 연결에 성공하면 이 계정에서 가져올 폴더를 고른다 */}
             {(a._folders?.length > 0 || a.folders?.length > 0) && (
               <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
@@ -234,10 +263,19 @@ export default function MailAccounts({ accounts, onChange }) {
                     ))}
                   </div>
                 ) : (
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    현재 선택: {(a.folders || []).join(', ') || '없음'} —
-                    <b> 연결 테스트</b>를 누르면 폴더 목록을 불러와 고를 수 있습니다.
-                  </div>
+                  <>
+                    {/* 아직 서버 목록을 못 받았을 때. 쉼표로 이어 붙이면 글 덩어리가 되어
+                        무엇이 선택돼 있는지 눈에 들어오지 않는다. */}
+                    <div className="row" style={{ gap: 6, maxHeight: 150, overflowY: 'auto' }}>
+                      {(a.folders || []).map((path) => (
+                        <span key={path} className="chip on" style={{ cursor: 'default' }}>{path}</span>
+                      ))}
+                      {!(a.folders || []).length && <span className="muted" style={{ fontSize: 12 }}>선택된 폴더 없음</span>}
+                    </div>
+                    <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                      <b>연결 테스트</b>를 누르면 메일함의 폴더 목록을 불러와 눌러서 고를 수 있습니다.
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -245,7 +283,21 @@ export default function MailAccounts({ accounts, onChange }) {
         );
       })}
 
-      <button type="button" className="btn secondary" onClick={add}>+ 메일 계정 추가</button>
+      {/* 저장은 이 자리에도 둔다. 페이지 맨 아래 버튼 하나뿐이면
+          계정을 고친 뒤 한참 내려가야 해서 저장한 줄 알고 나가게 된다. */}
+      <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+        {allowAdd && (
+          <button type="button" className="btn secondary" onClick={add}>+ 메일 계정 추가</button>
+        )}
+        {onSave && (
+          <button type="button" className="btn" onClick={onSave} disabled={saving}>
+            {saving ? '저장 중…' : '메일 계정 저장'}
+          </button>
+        )}
+        <span className="muted" style={{ fontSize: 12 }}>
+          바꾼 내용은 저장을 눌러야 반영됩니다.
+        </span>
+      </div>
     </div>
   );
 }

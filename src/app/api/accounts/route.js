@@ -40,8 +40,22 @@ export async function GET() {
 
     const byId = new Map(rows.map((r) => [r._id, r]));
 
+    // 마지막 수집이 성공했는지. 비밀번호가 틀리면 화면 어디에도 표시가 없어
+    // 메일이 안 들어오는 것을 한참 뒤에야 알게 된다 — 이 도구에서 가장 나쁜 실패다.
+    const sync = await collections.syncState();
+    const states = await sync.find({}).toArray();
+    const health = new Map();
+    for (const s of states) {
+      const id = s.accountId || 'main';
+      const cur = health.get(id) || { lastSyncAt: null, lastError: null, failed: 0, ok: 0 };
+      if (s.lastError) { cur.failed++; cur.lastError = s.lastError; } else { cur.ok++; }
+      if (s.lastSyncAt && (!cur.lastSyncAt || s.lastSyncAt > cur.lastSyncAt)) cur.lastSyncAt = s.lastSyncAt;
+      health.set(id, cur);
+    }
+
     const accounts = accountsOf(settings).map((a) => {
       const r = byId.get(a.id) || {};
+      const h = health.get(a.id) || {};
       return {
         id: a.id,
         label: a.label,
@@ -53,6 +67,14 @@ export async function GET() {
         recent: r.recent || 0,
         fresh: r.fresh || 0,
         last: r.last || null,
+        // 연결 상태 — 'ok' | 'fail' | 'unknown'(아직 한 번도 수집한 적 없음)
+        health: h.lastSyncAt || h.lastError
+          ? (h.failed ? 'fail' : 'ok')
+          : 'unknown',
+        lastSyncAt: h.lastSyncAt || null,
+        lastError: h.lastError || null,
+        // 비밀번호가 아예 없으면 수집이 시작조차 되지 않는다
+        passSet: Boolean(a.pass),
       };
     });
 
