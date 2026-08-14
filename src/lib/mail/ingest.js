@@ -6,7 +6,7 @@
  * lastUid 는 성공적으로 처리한 최대 UID 까지만 전진시켜, 중단 시 다음 회차에 이어받는다.
  */
 import { getSettings, accountsOf, accountAsSettings } from '@/lib/settings';
-import { fetchNew, fetchRecent, listMailboxes } from './imap';
+import { fetchNew, fetchRecent, listMailboxes, withOpenAccount } from './imap';
 import { threadKey } from './thread.js';
 import { parseMessage } from './parse';
 import { ruleClassify, shouldAnalyze } from './classify';
@@ -82,6 +82,16 @@ async function retireFolders(settings, retired) {
 
   patch.retiredGroups = [...new Set([...(settings.retiredGroups || []), ...goneNames])];
   await saveSettings(patch);
+
+  // 없어진 폴더의 수집 기록도 지운다.
+  // 남겨 두면 그 폴더의 옛 오류가 계속 읽혀, 지금은 멀쩡한 계정이
+  // 영원히 '연결 실패' 로 보인다(실측: 정리된 12개 폴더 때문에 그랬다).
+  try {
+    const sync = await collections.syncState();
+    await sync.deleteMany({
+      $or: retired.map((r) => ({ folder: r.folder, accountId: r.accountId })),
+    });
+  } catch { /* 기록 정리 실패가 수집을 막지는 않는다 */ }
 }
 
 async function ingestFolder(settings, folder, { limit, recent, learned, knownGroups = [], account }) {
@@ -199,29 +209,7 @@ export async function runIngest(opts = {}) {
   // 계정을 등록하지 않은 설치에서는 accountsOf() 가 기존 단일 계정 하나를
   // 그대로 돌려주므로 아래 루프가 예전과 똑같이 한 바퀴만 돈다.
   const accounts = accountsOf(settings);
-  const targets = [];
   const retired = [];
-
-  for (const account of accounts) {
-    let folders = opts.folders?.length ? opts.folders : (account.folders || ['INBOX']);
-    folders = [...new Set(folders.filter(Boolean))];
-
-    // 메일함에서 지운 폴더를 계속 붙들고 있으면 매 수집마다 오류가 나고,
-    // 화면의 거래처 목록에도 유령처럼 남는다. 서버의 실제 목록과 맞춰 걷어낸다.
-    // (opts.folders 로 대상을 직접 지정한 호출은 사용자가 정한 것이므로 건드리지 않는다)
-    if (!opts.folders?.length) {
-      try {
-        const live = await listMailboxes(accountAsSettings(account, settings));
-        const gone = folders.filter((f) => !live.includes(f));
-        if (gone.length) {
-          retired.push(...gone.map((f) => ({ accountId: account.id, folder: f })));
-          folders = folders.filter((f) => live.includes(f));
-        }
-      } catch { /* 폴더 목록을 못 읽으면 정리는 건너뛰고 수집은 그대로 시도한다 */ }
-    }
-
-    for (const folder of folders) targets.push({ account, folder });
-  }
 
   // 발신자→그룹 이력은 폴더를 돌기 전에 한 번만 만든다
   let learned = null;
@@ -247,33 +235,71 @@ export async function runIngest(opts = {}) {
   };
 
   const insertedIds = [];
-  for (const { account, folder } of targets) {
-    // 계정 정보를 IMAP 함수들이 기대하는 모양으로 갈아끼운다
-    const scoped = accountAsSettings(account, settings);
+  let attempted = 0;
+
+  for (const account of accounts) {
+    const base = accountAsSettings(account, settings);
     try {
-      const { stat, inserted } = await ingestFolder(scoped, folder, {
-        limit, recent: opts.recent, learned, knownGroups, account,
+      // 계정마다 연결을 **한 번만** 연다. 폴더마다 새로 붙으면 26개를 도는
+      // 동안 메일 서버가 연달아 붙는 것을 막아 뒤쪽 폴더가 통째로 실패한다
+      // (실측: 이카운트에서 한 번에 12개 폴더가 'Command failed').
+      await withOpenAccount(base, async (scoped) => {
+        let folders = opts.folders?.length ? opts.folders : (account.folders || ['INBOX']);
+        folders = [...new Set(folders.filter(Boolean))];
+
+        // 메일함에서 지운 폴더는 매 수집마다 오류를 내고 화면에도 유령처럼 남는다.
+        // 이미 열어 둔 연결로 실제 목록을 확인해 걷어낸다.
+        // (opts.folders 로 대상을 직접 지정한 호출은 사용자가 정한 것이라 건드리지 않는다)
+        if (!opts.folders?.length) {
+          try {
+            const live = await listMailboxes(scoped);
+            const gone = folders.filter((f) => !live.includes(f));
+            if (gone.length) {
+              retired.push(...gone.map((f) => ({ accountId: account.id, folder: f })));
+              folders = folders.filter((f) => live.includes(f));
+            }
+          } catch { /* 폴더 목록을 못 읽으면 정리는 건너뛰고 수집은 그대로 시도한다 */ }
+        }
+
+        for (const folder of folders) {
+          attempted++;
+          try {
+            const { stat, inserted } = await ingestFolder(scoped, folder, {
+              limit, recent: opts.recent, learned, knownGroups, account,
+            });
+            stats.folders.push(stat);
+            stats.fetched += stat.fetched;
+            stats.inserted += stat.inserted;
+            stats.duplicate += stat.duplicate;
+            stats.ruleFiltered += stat.ruleFiltered;
+            stats.grouped += stat.grouped;
+            stats.errors.push(...stat.errors.map((e) => ({ account: account.label, folder, ...e })));
+            insertedIds.push(...inserted);
+          } catch (e) {
+            // 폴더 하나가 죽어도 나머지는 계속 읽는다
+            const error = String(e?.message || e);
+            stats.folders.push({ account: account.label, accountId: account.id, folder, failed: true, error });
+            stats.errors.push({ account: account.label, folder, error });
+            await setSyncState(folder, { lastError: error, lastSyncAt: new Date() }, account.id);
+          }
+        }
       });
-      stats.folders.push(stat);
-      stats.fetched += stat.fetched;
-      stats.inserted += stat.inserted;
-      stats.duplicate += stat.duplicate;
-      stats.ruleFiltered += stat.ruleFiltered;
-      stats.grouped += stat.grouped;
-      stats.errors.push(...stat.errors.map((e) => ({ account: account.label, folder, ...e })));
-      insertedIds.push(...inserted);
     } catch (e) {
-      // 한 폴더(또는 한 계정)가 죽어도 나머지는 계속 수집한다.
-      // 계정이 여럿이면 Gmail 이 막혀도 이카운트 메일은 들어와야 한다.
+      // 계정 접속 자체가 실패 — 그 계정의 폴더 전부를 실패로 기록한다.
+      // 계정이 여럿이면 Gmail 이 막혀도 이카운트 메일은 들어와야 하므로 여기서 멈추지 않는다.
       const error = String(e?.message || e);
-      stats.folders.push({ account: account.label, accountId: account.id, folder, failed: true, error });
-      stats.errors.push({ account: account.label, folder, error });
-      await setSyncState(folder, { lastError: error, lastSyncAt: new Date() }, account.id);
+      const folders = opts.folders?.length ? opts.folders : (account.folders || ['INBOX']);
+      attempted += folders.length;
+      for (const folder of folders) {
+        stats.folders.push({ account: account.label, accountId: account.id, folder, failed: true, error });
+        await setSyncState(folder, { lastError: error, lastSyncAt: new Date() }, account.id);
+      }
+      stats.errors.push({ account: account.label, error });
     }
   }
 
   // 전부 못 읽었으면 설정 문제이므로 실패로 알린다
-  if (targets.length && stats.folders.every((f) => f.failed)) {
+  if (attempted && stats.folders.every((f) => f.failed)) {
     throw new Error(`IMAP 수집 실패: ${stats.folders[0].error}`);
   }
 

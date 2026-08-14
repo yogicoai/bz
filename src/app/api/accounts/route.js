@@ -44,9 +44,19 @@ export async function GET() {
     // 메일이 안 들어오는 것을 한참 뒤에야 알게 된다 — 이 도구에서 가장 나쁜 실패다.
     const sync = await collections.syncState();
     const states = await sync.find({}).toArray();
+
+    // **지금 수집 대상인 폴더만** 본다. 정리된 폴더의 옛 오류까지 세면
+    // 계정이 멀쩡해도 영원히 '연결 실패' 로 남는다.
+    const watching = new Map(
+      accountsOf(settings).map((a) => [a.id, new Set(a.folders || [])]),
+    );
+
     const health = new Map();
     for (const s of states) {
       const id = s.accountId || 'main';
+      const folders = watching.get(id);
+      if (folders && folders.size && !folders.has(s.folder)) continue;
+
       const cur = health.get(id) || { lastSyncAt: null, lastError: null, failed: 0, ok: 0 };
       if (s.lastError) { cur.failed++; cur.lastError = s.lastError; } else { cur.ok++; }
       if (s.lastSyncAt && (!cur.lastSyncAt || s.lastSyncAt > cur.lastSyncAt)) cur.lastSyncAt = s.lastSyncAt;

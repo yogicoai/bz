@@ -65,8 +65,17 @@ function friendlyImapError(e, settings) {
   return e;
 }
 
-/** 연결 후 콜백 실행, 성공/실패와 무관하게 logout 보장 */
+/**
+ * 연결 후 콜백 실행, 성공/실패와 무관하게 logout 보장.
+ *
+ * `settings.__client` 로 이미 열린 연결을 넘기면 그것을 그대로 쓰고 닫지 않는다.
+ * 폴더마다 새로 접속하면 26개 폴더를 도는 동안 메일 서버가 연달아 붙는 것을
+ * 막아 뒤쪽 폴더가 통째로 실패한다(실측: 한 번에 12개 폴더가 'Command failed').
+ * 계정당 한 번만 열고 폴더를 돌기 위한 통로다.
+ */
 async function withClient(settings, fn) {
+  if (settings?.__client) return fn(settings.__client);
+
   requireConfig(settings);
   const client = buildClient(settings);
   try {
@@ -76,6 +85,25 @@ async function withClient(settings, fn) {
   }
   try {
     return await fn(client);
+  } finally {
+    try { await client.logout(); } catch { /* 종료 실패는 무시 */ }
+  }
+}
+
+/**
+ * 연결을 한 번 열어 콜백에 넘긴다 — 여러 폴더를 연달아 볼 때 쓴다.
+ * 콜백에는 `settings` 에 열린 연결을 붙인 사본이 들어간다.
+ */
+export async function withOpenAccount(settings, fn) {
+  requireConfig(settings);
+  const client = buildClient(settings);
+  try {
+    await client.connect();
+  } catch (e) {
+    throw friendlyImapError(e, settings);
+  }
+  try {
+    return await fn({ ...settings, __client: client });
   } finally {
     try { await client.logout(); } catch { /* 종료 실패는 무시 */ }
   }

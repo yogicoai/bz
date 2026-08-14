@@ -15,7 +15,7 @@ const NAV = [
       // '전체 메일함'(/mails) 은 메뉴에서 뺐다 — 수천 통을 통째로 보는 화면이라
       // 오히려 브리핑 동선을 흐린다. 화면 자체는 남아 있어 대시보드의 숫자나
       // 거래처 목록에서 들어갈 수 있다.
-      { href: '/deadlines', label: '기한·답변', icon: '⏰' },
+      { href: '/deadlines', label: '기한·답변', icon: '⏰' },
     ],
   },
   {
@@ -94,7 +94,17 @@ export default function Sidebar({ open = false, onClose }) {
           priority
           className="brand-logo"
         />
-        <small>메일 관리</small>
+        {/* 어느 메일함의 화면인지 늘 보이게 한다.
+            대표님·이사님 화면이 거의 같아서, 주소가 없으면 어느 쪽을 보고 있는지
+            헷갈린다 — 그 상태에서 답장을 보내면 엉뚱한 계정으로 나간다. */}
+        <small>
+          메일 관리
+          {accounts[0]?.user && (
+            <span style={{ display: 'block', marginTop: 3, color: 'var(--accent-text)', fontWeight: 700 }}>
+              {accounts[0].user}
+            </span>
+          )}
+        </small>
       </Link>
 
       {NAV.map((g, gi) => (
@@ -116,11 +126,10 @@ export default function Sidebar({ open = false, onClose }) {
             })}
           </nav>
 
-          {/* 메일 계정 → 그 안의 폴더.
-              계정이 하나뿐이어도 같은 구조로 둔다 — 나중에 Gmail·네이버를 더해도
-              화면 모양이 달라지지 않고, 폴더가 어느 메일함 것인지가 늘 드러난다.
-              계정이 하나면 기본으로 펼쳐 두어 클릭이 늘지 않게 한다. */}
-          {gi === 0 && accounts.length > 0 && (
+          {/* 메일 계정 → 그 안의 폴더. **메일함을 두 곳 이상 등록했을 때만** 2단이 된다.
+              한 곳만 쓰면 계정 줄은 늘 같은 주소 하나라 알려주는 것이 없고,
+              폴더를 보려면 한 번 더 눌러야 해서 손해만 난다. */}
+          {gi === 0 && accounts.length > 1 && (
             <div style={{ marginTop: 18 }}>
               <div className="nav-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>메일 계정 <span style={{ fontWeight: 400 }}>· 최근 한 달</span></span>
@@ -179,6 +188,46 @@ export default function Sidebar({ open = false, onClose }) {
                         )
                       )}
                     </div>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
+
+          {/* 메일함이 한 곳뿐이면 예전처럼 거래처를 바로 펼쳐 놓는다.
+              계정 줄을 한 겹 씌워 봐야 늘 같은 주소 하나라 알려주는 것이 없다. */}
+          {gi === 0 && accounts.length <= 1 && groups.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <div className="nav-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>거래처 <span style={{ fontWeight: 400 }}>· 최근 한 달</span></span>
+                <Link href="/groups" className="muted" style={{ fontSize: 11, fontWeight: 600 }}>전체</Link>
+              </div>
+              <nav className="nav">
+                {groups.map((g2) => {
+                  const href = `/groups/${encodeURIComponent(g2.group)}`;
+                  return (
+                    <Link key={g2.group} href={href}
+                      className={decodeURIComponent(path) === decodeURIComponent(href) ? 'active' : ''}>
+                      <span className="label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span aria-hidden style={{ marginRight: 8 }}>📁</span>
+                        {g2.group}
+                      </span>
+                      {/* 빨간 숫자는 아직 안 본 것, 회색은 최근 한 달에 오간 통수.
+                          누적만 보여주면 확인해도 숫자가 그대로라 신호가 되지 않는다. */}
+                      {g2.fresh > 0
+                        ? (
+                          <span className="nav-badge"
+                            title={`최근 한 달 확인하지 않은 메일 ${g2.fresh}건 · 최근 한 달 ${g2.count}통 · 전체 ${(g2.total ?? g2.count).toLocaleString()}통`}>
+                            {g2.fresh}
+                          </span>
+                        )
+                        : (
+                          <span className="nav-count"
+                            title={`최근 한 달 ${g2.count}통 · 전체 ${(g2.total ?? g2.count).toLocaleString()}통 · 볼 것 없음`}>
+                            {g2.count}
+                          </span>
+                        )}
+                    </Link>
                   );
                 })}
               </nav>

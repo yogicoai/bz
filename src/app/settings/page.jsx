@@ -126,14 +126,23 @@ export default function SettingsPage() {
 
   return (
     <>
-      <h1 className="page-title">설정</h1>
-      <p className="page-sub">메일 수신(IMAP)·발신(SMTP)·AI 모델과 광고 필터 규칙을 관리합니다.</p>
+      <h1 className="page-title">
+        {features.multiAccount ? '메일 계정 추가 · 설정' : '설정'}
+      </h1>
+      <p className="page-sub">
+        {features.multiAccount
+          ? '가져올 메일함(이카운트·Gmail·네이버)을 추가·관리하고, 답장 발송·AI 모델·광고 필터를 설정합니다.'
+          : '메일 수신(IMAP)·발신(SMTP)·AI 모델과 광고 필터 규칙을 관리합니다.'}
+      </p>
 
       {msg && <div className="card" style={{ borderColor: 'var(--good)', marginBottom: 14 }}>{msg}</div>}
       {err && <div className="card" style={{ borderColor: 'var(--bad)', marginBottom: 14 }}>{err}</div>}
 
-      <Section title="메일 계정"
-        desc="가져올 메일함입니다. 이카운트·Gmail·네이버를 함께 등록하면 한 화면에서 모아 볼 수 있습니다. 비밀번호는 저장한 뒤 화면으로 다시 나오지 않으니, 계정 주인이 직접 입력하시면 됩니다.">
+      <Section
+        title={features.multiAccount ? '메일 계정 추가 · 관리' : '메일 계정'}
+        desc={features.multiAccount
+          ? '가져올 메일함입니다. + 메일 계정 추가로 Gmail·네이버를 함께 등록하면 한 화면에서 모아 볼 수 있습니다. 비밀번호는 저장한 뒤 화면으로 다시 나오지 않으니, 계정 주인이 직접 입력하시면 됩니다.'
+          : '메일을 가져올 계정입니다. 비밀번호는 저장한 뒤 화면으로 다시 나오지 않습니다.'}>
         <MailAccounts
           accounts={f.imapAccounts || []}
           onChange={(next) => setF((p) => ({ ...p, imapAccounts: next }))}
