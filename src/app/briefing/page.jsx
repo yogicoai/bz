@@ -43,12 +43,17 @@ function BriefingInner() {
   const [busy, setBusy] = useState(true);
   const [msg, setMsg] = useState('');
   const [apiKeySet, setApiKeySet] = useState(true);
+  // 이 설치에서 켜진 기능 (휴지통 보내기 등)
+  const [features, setFeatures] = useState({});
   // 위쪽 숫자 카드를 눌러 목록을 좁힌다 ('all' 이면 전체)
   const [view, setView] = useState('all');
 
   useEffect(() => {
     fetch('/api/estimate').then((r) => r.json())
       .then((r) => r.ok && setApiKeySet(Boolean(r.apiKeySet))).catch(() => {});
+    // 이 설치에서 켜진 기능 — 휴지통 버튼을 띄울지 여기서 정한다
+    fetch('/api/features').then((r) => r.json())
+      .then((r) => r.ok && setFeatures(r.features || {})).catch(() => {});
   }, []);
 
   const load = useCallback(async () => {
@@ -245,7 +250,8 @@ function BriefingInner() {
             </div>
           ) : (
             shown.map((m, i) => (
-              <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)} onTrashed={load} />
+              <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)}
+                onTrashed={load} canTrash={Boolean(features.trash)} />
             ))
           )}
 
@@ -256,7 +262,7 @@ function BriefingInner() {
   );
 }
 
-function Item({ mail, index, onToggle, onTrashed }) {
+function Item({ mail, index, onToggle, onTrashed, canTrash }) {
   const a = mail.analysis || {};
   const done = ['replied', 'archived', 'ignored'].includes(mail.status);
 
@@ -287,11 +293,12 @@ function Item({ mail, index, onToggle, onTrashed }) {
             <span className={`badge ${mail.classification}`}>{classificationLabel(mail.classification)}</span>
             {a.method !== 'ai' && <span className="badge">요약 없음</span>}
 
-            {/* 목록에서 바로 버릴 수 있게. 누르면 확인 창이 한 번 뜬다. */}
-            <div className="grow" />
-            {mail.trashedAt
+            {/* 목록에서 바로 버릴 수 있게. 누르면 확인 창이 한 번 뜬다.
+                메일함 원본을 건드리므로 켜 둔 설치(MAIL_TRASH)에서만 보인다. */}
+            {canTrash && <div className="grow" />}
+            {canTrash && (mail.trashedAt
               ? <span className="badge" title={mail.trashedTo}>휴지통</span>
-              : <TrashButton mailId={mail._id} subject={mail.subject} onDone={onTrashed} />}
+              : <TrashButton mailId={mail._id} subject={mail.subject} onDone={onTrashed} />)}
           </div>
 
           <Link href={`/mails/${mail._id}`}

@@ -34,8 +34,19 @@ export default function Sidebar({ open = false, onClose }) {
   const [groups, setGroups] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [byAccount, setByAccount] = useState({});
-  // 계정 아래 폴더를 펼쳐 둔 계정 id (한 번에 하나만)
+  // 이 설치가 여러 메일함 방식인지 (MULTI_ACCOUNT=1)
+  const [multiUi, setMultiUi] = useState(false);
+  // 계정 아래 폴더를 펼쳐 둔 계정 id (한 번에 하나만). 화살표로만 바뀐다.
   const [expanded, setExpanded] = useState(null);
+
+  // 그 계정 화면으로 들어가면 한 번 펼쳐 준다.
+  // 경로가 바뀔 때만 손대므로, 같은 화면에서 접으면 접힌 채로 남는다.
+  useEffect(() => {
+    const cur = accounts.find(
+      (a) => decodeURIComponent(path).startsWith(`/accounts/${encodeURIComponent(a.id)}`),
+    );
+    if (cur) setExpanded(cur.id);
+  }, [path, accounts]);
 
   // 오늘 처리할 제안 건수 — 브리핑 메뉴 배지.
   //
@@ -72,7 +83,11 @@ export default function Sidebar({ open = false, onClose }) {
     let alive = true;
     fetch('/api/accounts')
       .then((r) => r.json())
-      .then((r) => { if (alive && r.ok) setAccounts(r.accounts || []); })
+      .then((r) => {
+        if (!alive || !r.ok) return;
+        setAccounts(r.accounts || []);
+        setMultiUi(Boolean(r.multiAccountUi));
+      })
       .catch(() => {});
     return () => { alive = false; };
   }, [path]);
@@ -129,7 +144,7 @@ export default function Sidebar({ open = false, onClose }) {
           {/* 메일 계정 → 그 안의 폴더. **메일함을 두 곳 이상 등록했을 때만** 2단이 된다.
               한 곳만 쓰면 계정 줄은 늘 같은 주소 하나라 알려주는 것이 없고,
               폴더를 보려면 한 번 더 눌러야 해서 손해만 난다. */}
-          {gi === 0 && accounts.length > 1 && (
+          {gi === 0 && multiUi && accounts.length > 0 && (
             <div style={{ marginTop: 18 }}>
               <div className="nav-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>메일 계정 <span style={{ fontWeight: 400 }}>· 최근 한 달</span></span>
@@ -139,10 +154,11 @@ export default function Sidebar({ open = false, onClose }) {
                 {accounts.map((a) => {
                   const href = `/accounts/${encodeURIComponent(a.id)}`;
                   const mine = byAccount[a.id] || [];
-                  // 처음에는 접어 둔다. 폴더가 20개가 넘는 계정도 있어서
-                  // 펼친 채로 시작하면 사이드바가 폴더 목록으로만 가득 찬다.
-                  // 그 계정 화면에 들어가 있을 때만 자동으로 열린다.
-                  const open = expanded === a.id || decodeURIComponent(path).startsWith(href);
+                  // 펼침 여부는 오직 이 상태만 본다.
+                  // 예전엔 "현재 경로가 이 계정이면 열림" 조건을 함께 걸었는데,
+                  // 그 계정 화면에 있는 동안에는 접어도 곧바로 다시 열려서
+                  // 화살표를 눌러도 안 닫히는 것처럼 보였다.
+                  const open = expanded === a.id;
                   return (
                     <div key={a.id}>
                       <div style={{ display: 'flex', alignItems: 'stretch' }}>
@@ -196,7 +212,7 @@ export default function Sidebar({ open = false, onClose }) {
 
           {/* 메일함이 한 곳뿐이면 예전처럼 거래처를 바로 펼쳐 놓는다.
               계정 줄을 한 겹 씌워 봐야 늘 같은 주소 하나라 알려주는 것이 없다. */}
-          {gi === 0 && accounts.length <= 1 && groups.length > 0 && (
+          {gi === 0 && !multiUi && groups.length > 0 && (
             <div style={{ marginTop: 18 }}>
               <div className="nav-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>거래처 <span style={{ fontWeight: 400 }}>· 최근 한 달</span></span>

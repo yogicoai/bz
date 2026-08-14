@@ -88,8 +88,16 @@ export async function GET() {
       };
     });
 
-    // multi = 사용자가 계정을 실제로 등록했는지 (설명 문구 등에서 쓴다)
-    return NextResponse.json({ ok: true, accounts, multi: configured.length > 0 });
+    return NextResponse.json({
+      ok: true,
+      accounts,
+      // 사용자가 계정을 실제로 등록했는지
+      multi: configured.length > 0,
+      // 이 설치가 '여러 메일함' 방식인지 (MULTI_ACCOUNT=1).
+      // 지금 계정이 하나뿐이어도 이 쪽 화면은 계정→폴더 2단으로 둔다 —
+      // Gmail·네이버를 더할 예정이라 그때 화면이 바뀌면 오히려 혼란스럽다.
+      multiAccountUi: process.env.MULTI_ACCOUNT === '1',
+    });
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
   }

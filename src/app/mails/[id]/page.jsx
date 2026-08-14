@@ -41,6 +41,8 @@ export default function MailDetailPage({ params }) {
   const [busy, setBusy] = useState(false);
 
   const [est, setEst] = useState(null);
+  // 이 설치에서 켜진 기능 (휴지통 보내기 등)
+  const [features, setFeatures] = useState({});
 
   // 답장
   const [intent, setIntent] = useState('');
@@ -65,6 +67,7 @@ export default function MailDetailPage({ params }) {
     fetch(`/api/mails/${id}/send`).then((x) => x.json()).then((r) => setDryRun(r.dryRun)).catch(() => {});
     // 예상 비용도 로컬 계산이라 API 과금이 없다
     fetch(`/api/estimate?id=${id}`).then((x) => x.json()).then((r) => r.ok && setEst(r.estimate)).catch(() => {});
+    fetch('/api/features').then((x) => x.json()).then((r) => r.ok && setFeatures(r.features || {})).catch(() => {});
     // id 는 라우트 파라미터라 마운트 후 바뀌지 않는다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -173,9 +176,10 @@ export default function MailDetailPage({ params }) {
             {est && ` (≈₩${est.krw.toLocaleString()})`}
           </button>
           <a className="btn secondary" href={`/api/mails/${id}/doc`}>정리 파일 (.md) 다운로드</a>
-          <div className="grow" />
-          {/* 메일함 원본을 건드리는 유일한 버튼이라 오른쪽 끝에 따로 둔다 */}
-          {mail.trashedAt
+          {/* 메일함 원본을 건드리는 유일한 버튼이라 오른쪽 끝에 따로 둔다.
+              켜 둔 설치(MAIL_TRASH)에서만 보인다. */}
+          {features.trash && <div className="grow" />}
+          {features.trash && (mail.trashedAt
             ? <span className="badge" title={mail.trashedTo}>휴지통으로 옮김</span>
             : (
               <TrashButton
@@ -185,7 +189,7 @@ export default function MailDetailPage({ params }) {
                 label="🗑 휴지통으로"
                 onDone={(r) => { load(); setMsg(r.message); }}
               />
-            )}
+            ))}
         </div>
         {est && (
           <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
