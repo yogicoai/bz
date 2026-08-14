@@ -11,7 +11,7 @@ export async function GET(req) {
   try {
     const sp = new URL(req.url).searchParams;
     const params = {};
-    for (const k of ['classification', 'status', 'lang', 'needsReply', 'from', 'q', 'group', 'since', 'until', 'sort', 'accountId']) {
+    for (const k of ['classification', 'status', 'lang', 'needsReply', 'from', 'q', 'group', 'since', 'until', 'sort', 'accountId', 'trashed']) {
       const v = sp.get(k);
       if (v) params[k] = v;
     }

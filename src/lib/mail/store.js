@@ -56,9 +56,14 @@ export async function updateMail(id, patch) {
 
 /** 목록 필터 조건 — 낱개 조회와 스레드 조회가 같은 규칙을 쓰도록 분리했다 */
 function buildMailQuery({
-  classification, status, lang, needsReply, from, q, group, since, until, accountId,
+  classification, status, lang, needsReply, from, q, group, since, until, accountId, trashed,
 } = {}) {
   const query = {};
+
+  // 휴지통으로 보낸 것 — 기본 목록에서는 빼고, 휴지통 화면에서만 본다.
+  // DB 에서 지우지 않으므로 무엇을 버렸는지 언제든 되짚을 수 있다.
+  if (trashed === true || trashed === 'true') query.trashedAt = { $ne: null };
+  else query.trashedAt = null;
 
   // 계정 축으로 보기 (여러 메일함을 등록한 경우).
   // 계정 개념이 생기기 전 메일에는 accountId 가 없으므로 'main' 은 그것까지 포함한다.
@@ -99,8 +104,13 @@ export async function listMails(opts = {}) {
 
   const sortSpec = sort.startsWith('-') ? { [sort.slice(1)]: -1 } : { [sort]: 1 };
   const [items, count] = await Promise.all([
-    mails.find(query, { projection: { 'raw.html': 0 } })
-      .sort(sortSpec).skip(Number(skip)).limit(Math.min(Number(limit), 200)).toArray(),
+    // 본문을 빼고 읽는다. 목록 화면은 제목·발신·요약만 그리는데,
+    // raw 를 안고 정렬하면 문서 하나가 평균 71KB 라 200통이면 14MB 를 읽고
+    // 메모리에서 정렬한다. 실측으로 한 요청이 10~40초까지 걸렸다.
+    mails.find(query, { projection: { raw: 0, doc: 0, drafts: 0, 'analysis.usage': 0 } })
+      .sort(sortSpec).skip(Number(skip)).limit(Math.min(Number(limit), 200))
+      .allowDiskUse(true)
+      .toArray(),
     mails.countDocuments(query),
   ]);
   return { items, count };

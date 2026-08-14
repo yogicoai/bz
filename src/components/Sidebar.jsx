@@ -36,6 +36,8 @@ export default function Sidebar({ open = false, onClose }) {
   const [byAccount, setByAccount] = useState({});
   // 이 설치가 여러 메일함 방식인지 (MULTI_ACCOUNT=1)
   const [multiUi, setMultiUi] = useState(false);
+  // 휴지통 기능이 켜진 설치에서만 휴지통 줄을 띄운다
+  const [trashOn, setTrashOn] = useState(false);
   // 계정 아래 폴더를 펼쳐 둔 계정 id (한 번에 하나만). 화살표로만 바뀐다.
   const [expanded, setExpanded] = useState(null);
 
@@ -75,6 +77,16 @@ export default function Sidebar({ open = false, onClose }) {
       .catch(() => {});
     return () => { alive = false; };
   }, [path]);
+
+  // 이 설치에서 켜진 기능
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/features')
+      .then((r) => r.json())
+      .then((r) => { if (alive && r.ok) setTrashOn(Boolean(r.features?.trash)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // 메일 계정 — 여러 메일함을 등록한 경우에만 나온다.
   // 계정이 여럿이면 사람의 머릿속 첫 구분은 거래처가 아니라
@@ -198,6 +210,17 @@ export default function Sidebar({ open = false, onClose }) {
                                 </Link>
                               );
                             })}
+
+                            {/* 폴더 맨 아래에 휴지통 — 웹메일과 같은 자리감.
+                                버린 것이 어디로 갔는지 보이지 않으면 버리기를 망설이게 된다. */}
+                            {trashOn && (
+                              <Link href="/trash" className={path === '/trash' ? 'active' : ''}>
+                                <span className="label">
+                                  <span aria-hidden style={{ marginRight: 6 }}>🗑</span>
+                                  휴지통
+                                </span>
+                              </Link>
+                            )}
                           </div>
                         ) : (
                           <div className="nav-sub nav-sub-empty">아직 폴더가 없습니다</div>
@@ -246,6 +269,16 @@ export default function Sidebar({ open = false, onClose }) {
                     </Link>
                   );
                 })}
+
+                {/* 폴더 맨 아래에 휴지통 — 켜 둔 설치에서만 */}
+                {trashOn && (
+                  <Link href="/trash" className={path === '/trash' ? 'active' : ''}>
+                    <span className="label">
+                      <span aria-hidden style={{ marginRight: 8 }}>🗑</span>
+                      휴지통
+                    </span>
+                  </Link>
+                )}
               </nav>
             </div>
           )}

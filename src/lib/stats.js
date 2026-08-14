@@ -5,7 +5,8 @@ import { collections } from './db';
 
 // 우리가 보낸 메일은 어떤 집계에도 들어가지 않는다.
 // '답변 필요 1,200건' 의 3분의 1이 우리가 쓴 메일이면 숫자가 의미를 잃는다.
-const INBOUND = { direction: { $ne: 'out' } };
+// 휴지통으로 보낸 것은 어떤 집계에도 넣지 않는다
+const INBOUND = { direction: { $ne: 'out' }, trashedAt: null };
 const AI_TARGET = { classification: { $nin: ['ad', 'system', 'newsletter'] }, ...INBOUND };
 const OPEN = { status: { $in: ['new', 'reviewing'] }, ...INBOUND };
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, use, Suspense } from 'react';
 import Link from 'next/link';
+import TrashButton from '@/components/TrashButton';
 import { useSearchParams } from 'next/navigation';
 import {
   STATUSES, classificationLabel, statusLabel, langLabel,
@@ -49,6 +50,13 @@ function GroupInner({ params }) {
   const [err, setErr] = useState('');
   // 위 숫자 카드를 눌러 표를 좁힌다 ('all' 이면 전체)
   const [view, setView] = useState('all');
+  // 휴지통 기능이 켜진 설치에서만 삭제 열을 띄운다
+  const [canTrash, setCanTrash] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/features').then((r) => r.json())
+      .then((r) => r.ok && setCanTrash(Boolean(r.features?.trash))).catch(() => {});
+  }, []);
   // 거래처 한 곳에 500통이 넘게 쌓인 곳도 있다. 전부 불러오면 화면이 무거울 뿐
   // 아니라 지금 볼 것을 찾기가 어렵다. 기본은 최근 한 달이고 필요할 때 넓힌다.
   const [f, setF] = useState({
@@ -216,6 +224,7 @@ function GroupInner({ params }) {
                 <th style={{ width: 74 }}>답변</th>
                 <th style={{ width: 84 }}>기한</th>
                 <th style={{ width: 74 }}>상태</th>
+                {canTrash && <th style={{ width: 44 }}> </th>}
               </tr>
             </thead>
             <tbody>
@@ -260,6 +269,11 @@ function GroupInner({ params }) {
                         : <span className="muted" style={{ fontSize: 12 }}>-</span>}
                   </td>
                   <td><span className={`badge ${m.status}`}>{statusLabel(m.status)}</span></td>
+                  {canTrash && (
+                      <td>
+                        <TrashButton mailId={m._id} subject={m.subject} onDone={load} />
+                      </td>
+                    )}
                 </tr>
               ))}
             </tbody>

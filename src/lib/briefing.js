@@ -75,6 +75,8 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
       // "법인카드 사용내역 송부", "매출 보고" 처럼 내가 쓴 메일이
       // 답변 필요 건으로 브리핑 맨 위에 올라온다(실측 확인).
       direction: { $ne: 'out' },
+      // 휴지통으로 보낸 것은 할 일도 기록도 아니다
+      trashedAt: null,
     };
     if (!includeDone) query.status = { $nin: DONE_STATUSES };
 
@@ -108,6 +110,8 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
         date: { $gte: new Date(from.getTime() - MISSED_LOOKBACK_DAYS * 86400_000), $lt: from },
         classification: { $in: PROPOSAL_CLASSES },
         direction: { $ne: 'out' },
+        // 휴지통으로 보낸 것은 할 일도 기록도 아니다
+        trashedAt: null,
         status: { $nin: DONE_STATUSES },
       }, { projection: PROJECTION })
       .sort({ date: -1 })
@@ -124,6 +128,8 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
         date: { $gte: new Date(end.getTime() - MISSED_LOOKBACK_DAYS * 86400_000) },
         classification: { $in: PROPOSAL_CLASSES },
         direction: { $ne: 'out' },
+        // 휴지통으로 보낸 것은 할 일도 기록도 아니다
+        trashedAt: null,
         status: { $in: DONE_STATUSES },
       }, { projection: PROJECTION })
       .sort({ date: -1 })

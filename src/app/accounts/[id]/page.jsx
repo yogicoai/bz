@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, use } from 'react';
 import Link from 'next/link';
+import TrashButton from '@/components/TrashButton';
 import {
   STATUSES, classificationLabel, statusLabel, langLabel,
   ddayLabel, ddayTone,
@@ -37,6 +38,13 @@ export default function AccountPage({ params }) {
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState('');
   const [view, setView] = useState('all');
+  // 휴지통 기능이 켜진 설치에서만 삭제 열을 띄운다
+  const [canTrash, setCanTrash] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/features').then((r) => r.json())
+      .then((r) => r.ok && setCanTrash(Boolean(r.features?.trash))).catch(() => {});
+  }, []);
   const [f, setF] = useState({ status: '', needsReply: '', q: '', hideAds: true, days: '30', from: '', to: '' });
 
   useEffect(() => {
@@ -177,6 +185,7 @@ export default function AccountPage({ params }) {
                   <th style={{ width: 90 }}>거래처</th>
                   <th style={{ width: 74 }}>답변</th>
                   <th style={{ width: 84 }}>기한</th>
+                  {canTrash && <th style={{ width: 44 }}> </th>}
                 </tr>
               </thead>
               <tbody>
@@ -208,6 +217,11 @@ export default function AccountPage({ params }) {
                         </span>
                       )}
                     </td>
+                    {canTrash && (
+                      <td>
+                        <TrashButton mailId={m._id} subject={m.subject} onDone={load} />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -77,6 +77,11 @@ export async function ensureIndexes() {
     mails.createIndex({ threadKey: 1, date: -1 }),
     // 계정별 화면·집계 (계정을 여러 개 등록한 설치에서 쓴다)
     mails.createIndex({ accountId: 1, date: -1 }),
+    // 목록 화면은 전부 date 로 정렬한다. receivedAt 인덱스만 있으면 정렬을
+    // 메모리에서 하게 되어, 거래처 한 곳만 열어도 수십 초가 걸린다.
+    mails.createIndex({ date: -1 }),
+    mails.createIndex({ group: 1, date: -1 }),
+    mails.createIndex({ trashedAt: 1 }),
   ]);
 
   // 수집 기준점은 계정+폴더 단위다. 예전에는 폴더만으로 유일했는데,
