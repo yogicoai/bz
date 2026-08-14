@@ -17,6 +17,7 @@ const VIEW_LABEL = {
   reply: '답변 필요',
   deadline: '기한 있음',
   pending: '요약 대기',
+  done: '검토 완료',
 };
 
 const VIEW_FILTER = {
@@ -66,7 +67,10 @@ function BriefingInner() {
   // "메일이 없다"고 오해하는 것을 막는다
   useEffect(() => { setView('all'); }, [date, days]);
 
-  const shown = (b?.items || []).filter(VIEW_FILTER[view] || VIEW_FILTER.all);
+  // '검토 완료'는 오늘 목록을 거르는 게 아니라 다른 묶음(최근 한 달 처리분)을 본다
+  const shown = view === 'done'
+    ? (b?.done || [])
+    : (b?.items || []).filter(VIEW_FILTER[view] || VIEW_FILTER.all);
 
   /** 체크 = 처리완료(보관). 되돌리면 확인중으로. */
   async function toggle(mail) {
@@ -75,7 +79,7 @@ function BriefingInner() {
     // 낙관적 반영 — 체크 리듬이 끊기지 않도록
     // 오늘 목록과 '지난 미처리' 목록 어느 쪽에서 눌러도 즉시 반영되어야 한다
     const flip = (list) => (list || []).map((m) => (m._id === mail._id ? { ...m, status: next } : m));
-    setB((p) => ({ ...p, items: flip(p.items), missed: flip(p.missed) }));
+    setB((p) => ({ ...p, items: flip(p.items), missed: flip(p.missed), done: flip(p.done) }));
     try {
       const r = await fetch(`/api/mails/${mail._id}`, {
         method: 'PATCH',
@@ -116,8 +120,6 @@ function BriefingInner() {
           <h1 className="page-title">오늘의 제안 브리핑</h1>
           <p className="page-sub">
             들어온 제안 메일을 하루 단위로 묶어 보여줍니다. 위에서부터 확인하고 체크해 내려가세요.
-            {/* 체크한 것이 어디로 가는지 알려 준다 — 모르면 체크를 망설이게 된다 */}
-            {' '}체크한 건은 <Link href="/done" style={{ color: 'var(--accent)' }}>검토 완료</Link>로 넘어갑니다.
           </p>
         </div>
       </div>
@@ -157,16 +159,30 @@ function BriefingInner() {
         <>
           {/* 숫자를 보여주기만 하면 "그래서 그 4건이 뭔데" 를 찾으러 목록을 훑어야 한다.
               눌러서 그 4건만 남기는 것이 이 화면에서 가장 자주 하는 동작이다. */}
-          <div className="cards" style={{ marginBottom: 16 }}>
-            <Stat label="새 제안" value={b.total}
+          <div className="cards" style={{ marginBottom: 10 }}>
+            <Stat label="새 제안" value={b.total} sub="이 날짜에 들어온 제안"
               active={view === 'all'} onClick={() => setView('all')} />
             <Stat label="답변 필요" value={b.needsReply} tone={b.needsReply ? 'bad' : null}
+              sub="상대가 회신을 기다리는 건"
               active={view === 'reply'} onClick={() => setView('reply')} />
             <Stat label="기한 있음" value={b.withDeadline} tone={b.withDeadline ? 'warn' : null}
+              sub="날짜가 정해진 건"
               active={view === 'deadline'} onClick={() => setView('deadline')} />
             <Stat label="요약 대기" value={b.unanalyzed}
-              sub={b.unanalyzed ? 'AI 요약 미생성' : '모두 요약됨'}
+              sub={b.unanalyzed ? 'AI 요약이 아직 없음' : '모두 요약됨'}
               active={view === 'pending'} onClick={() => setView('pending')} />
+            <Stat label="검토 완료" value={b.doneTotal || 0} tone={b.doneTotal ? 'good' : null}
+              sub="체크한 건 · 최근 한 달"
+              active={view === 'done'} onClick={() => setView('done')} />
+          </div>
+
+          {/* 카드가 무엇을 뜻하는지 한 줄로. 처음 보는 사람은 숫자만으로는 알 수 없다. */}
+          <div className="muted" style={{ fontSize: 12, lineHeight: 1.8, marginBottom: 16 }}>
+            위 숫자를 <b>누르면</b> 그 건만 골라 볼 수 있습니다.
+            {' '}<b>답변 필요</b>는 상대가 질문·요청을 했는데 아직 회신하지 않은 건,
+            {' '}<b>기한 있음</b>은 견적 마감·회신 요청일처럼 날짜가 걸린 건입니다.
+            {' '}읽고 판단이 끝나면 <b>왼쪽 체크박스</b>를 누르세요 — <b>검토 완료</b>로 넘어가고
+            목록에서 빠집니다(지워지지 않습니다).
           </div>
 
           {view !== 'all' && (
@@ -205,9 +221,11 @@ function BriefingInner() {
           {!shown.length ? (
             <div className="card">
               <div className="empty">
-                {view !== 'all'
-                  ? `${VIEW_LABEL[view]}에 해당하는 메일이 없습니다.`
-                  : '이 날짜에 새로 들어온 제안 메일이 없습니다.'}
+                {view === 'done'
+                  ? '최근 한 달 안에 검토 완료로 체크한 메일이 없습니다.'
+                  : view !== 'all'
+                    ? `${VIEW_LABEL[view]}에 해당하는 메일이 없습니다.`
+                    : '이 날짜에 새로 들어온 제안 메일이 없습니다.'}
                 {view === 'all' && !includeDone && (
                   <><br /><span style={{ fontSize: 12 }}>처리 완료한 건을 보려면 위의 체크박스를 켜세요.</span></>
                 )}

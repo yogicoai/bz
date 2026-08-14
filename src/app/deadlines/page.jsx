@@ -25,8 +25,20 @@ export default async function DeadlinesPage() {
     <>
       <h1 className="page-title">기한·답변 관리</h1>
       <p className="page-sub">
-        처리하지 않은(신규·확인중) 메일만 표시합니다. 답변을 보내거나 상태를 <b>답변완료·보관</b>으로 바꾸면 목록에서 사라집니다.
+        <b>날짜가 걸린 건만</b> 마감이 급한 순서로 모아 놓은 화면입니다.
+        브리핑이 하루 단위로 훑는 곳이라면, 여기는 &ldquo;언제까지 뭘 해야 하나&rdquo;를 보는 자리입니다.
       </p>
+
+      {/* 이 화면이 무엇을 기준으로 나뉘어 있는지 — 처음 보면 알 수 없다 */}
+      <div className="card" style={{ marginBottom: 18, background: 'var(--panel-2)' }}>
+        <div style={{ fontSize: 13, lineHeight: 2, color: 'var(--text-2)' }}>
+          기한은 메일 본문에서 <b>&ldquo;○일까지 회신 부탁&rdquo;, &ldquo;견적 마감 ○월 ○일&rdquo;</b> 같은 표현을 찾아 자동으로 잡습니다.
+          기한이 없더라도 상대가 답을 기다리는 건은 맨 아래 <b>답변 필요</b>에 모입니다.<br />
+          <span className="muted">
+            아직 처리하지 않은(신규·확인중) 메일만 나옵니다 — 답장을 보내거나 <b>검토 완료</b>로 체크하면 이 목록에서 빠집니다.
+          </span>
+        </div>
+      </div>
 
       <Group
         title="기한 지남 — 아직 대응할 수 있는 건 (30일 이내)"

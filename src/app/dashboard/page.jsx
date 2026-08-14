@@ -33,7 +33,10 @@ export default async function DashboardPage() {
   return (
     <>
       <h1 className="page-title">대시보드</h1>
-      <p className="page-sub">답변이 필요한 메일과 기한이 있는 건을 먼저 보여줍니다.</p>
+      <p className="page-sub">
+        <b>지금 전체가 어떤 상태인지</b> 한눈에 보는 화면입니다.
+        오늘의 브리핑이 &ldquo;오늘 처리할 일&rdquo;이라면, 여기는 &ldquo;밀린 것은 없나, 놓친 것은 없나&rdquo;를 확인하는 자리입니다.
+      </p>
 
       {/* 진입 시 "오늘 처리할 메일" 알림 — 하루 한 번 뜨고, 닫으면 상단 배너로 남는다 */}
       <TodayAlert />
@@ -52,6 +55,19 @@ export default async function DashboardPage() {
           sub={k.pendingAnalysisRecent
             ? `최근 30일 · 전체 ${(k.pendingAnalysis || 0).toLocaleString()}건`
             : `최근 30일은 모두 완료 · 전체 ${(k.pendingAnalysis || 0).toLocaleString()}건 남음`} href="/mails" />
+      </div>
+
+      {/* 숫자만 있으면 무엇을 뜻하는지 모른다 — 처음 보는 사람 기준으로 한 줄씩 */}
+      <div className="card" style={{ marginBottom: 18, background: 'var(--panel-2)' }}>
+        <div className="card-title" style={{ fontSize: 14 }}>숫자가 뜻하는 것</div>
+        <div style={{ fontSize: 13, lineHeight: 2, color: 'var(--text-2)' }}>
+          <b>답변 필요</b> — 상대가 질문·요청을 했는데 아직 회신하지 않은 건입니다.<br />
+          <b>기한 지남</b> — 견적 마감·회신 요청일이 이미 지난 건입니다. 30일 이내만 셉니다(그보다 오래된 건 지금 손써도 늦어서 숫자만 흐려집니다).<br />
+          <b>기한 임박</b> — 일주일 안에 마감인 건입니다.<br />
+          <b>신규 미확인</b> — 아직 한 번도 열어보지 않은 메일입니다.<br />
+          <b>분석 대기</b> — 한글 번역과 요약이 아직 만들어지지 않은 메일입니다. 답변 필요·기한은 이미 잡혀 있어 그대로 쓰실 수 있습니다.<br />
+          <span className="muted">숫자를 누르면 해당 목록으로 바로 넘어갑니다. 기본은 <b>최근 30일</b> 기준입니다.</span>
+        </div>
       </div>
 
       <Panel title="답변이 필요한 메일" count={d.replyList.length} more="/deadlines">

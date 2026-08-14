@@ -116,6 +116,22 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
 
     const missedSer = missed.map((m) => ({ ...m, _id: String(m._id) }));
 
+    // 체크해서 처리한 것 — 확인용. 화면 위 카드에서 눌러 볼 수 있게 함께 싣는다.
+    // 별도 화면을 두지 않는 이유는, 이건 '가서 일하는 곳'이 아니라
+    // "내가 체크한 게 이게 맞나" 를 한 번 훑는 자리이기 때문이다.
+    const done = await mails
+      .find({
+        date: { $gte: new Date(end.getTime() - MISSED_LOOKBACK_DAYS * 86400_000) },
+        classification: { $in: PROPOSAL_CLASSES },
+        direction: { $ne: 'out' },
+        status: { $in: DONE_STATUSES },
+      }, { projection: PROJECTION })
+      .sort({ date: -1 })
+      .limit(100)
+      .toArray();
+
+    const doneSer = done.map((m) => ({ ...m, _id: String(m._id) }));
+
     return {
       connected: true,
       date: date || kstDateString(),
@@ -129,6 +145,9 @@ export async function getBriefing({ date, days = 1, includeDone = false } = {}) 
       missedTotal: missedSer.length,
       missedNeedsReply: missedSer.filter((m) => m.analysis?.needsReply).length,
       missed: missedSer,
+      // 체크해서 처리한 것 (최근 한 달) — 확인용
+      doneTotal: doneSer.length,
+      done: doneSer,
     };
   } catch (e) {
     return { connected: false, error: String(e?.message || e) };

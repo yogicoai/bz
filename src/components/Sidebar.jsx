@@ -15,10 +15,7 @@ const NAV = [
       // '전체 메일함'(/mails) 은 메뉴에서 뺐다 — 수천 통을 통째로 보는 화면이라
       // 오히려 브리핑 동선을 흐린다. 화면 자체는 남아 있어 대시보드의 숫자나
       // 거래처 목록에서 들어갈 수 있다.
-      { href: '/deadlines', label: '기한·답변', icon: '⏰' },
-      // 체크한 건이 어디로 갔는지 볼 자리. 없으면 "지운 건가?" 싶어
-      // 체크를 망설이게 되는데, 체크가 이 도구의 핵심 동작이다.
-      { href: '/done', label: '검토 완료', icon: '✅' },
+      { href: '/deadlines', label: '기한·답변', icon: '⏰' },
     ],
   },
   {
@@ -132,10 +129,10 @@ export default function Sidebar({ open = false, onClose }) {
                 {accounts.map((a) => {
                   const href = `/accounts/${encodeURIComponent(a.id)}`;
                   const mine = byAccount[a.id] || [];
-                  // 계정이 하나뿐이면 접을 이유가 없으므로 펼친 채로 시작한다
-                  const open = expanded === a.id
-                    || decodeURIComponent(path).startsWith(href)
-                    || (expanded === null && accounts.length === 1);
+                  // 처음에는 접어 둔다. 폴더가 20개가 넘는 계정도 있어서
+                  // 펼친 채로 시작하면 사이드바가 폴더 목록으로만 가득 찬다.
+                  // 그 계정 화면에 들어가 있을 때만 자동으로 열린다.
+                  const open = expanded === a.id || decodeURIComponent(path).startsWith(href);
                   return (
                     <div key={a.id}>
                       <div style={{ display: 'flex', alignItems: 'stretch' }}>
