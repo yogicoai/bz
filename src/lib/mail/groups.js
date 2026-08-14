@@ -17,7 +17,7 @@ export function groupNameFromFolder(folder = '') {
 }
 
 /** 회사를 특정할 수 없는 개인 메일 도메인 — 도메인 기반 추론에서 제외 */
-const FREE_MAIL = new Set([
+export const FREE_MAIL = new Set([
   'gmail.com', 'naver.com', 'daum.net', 'hanmail.net', 'nate.com',
   'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'me.com',
   'qq.com', '163.com', '126.com', 'yandex.com', 'proton.me', 'protonmail.com',

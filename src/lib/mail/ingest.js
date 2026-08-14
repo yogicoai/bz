@@ -12,7 +12,7 @@ import { parseMessage } from './parse';
 import { ruleClassify, shouldAnalyze } from './classify';
 import { localAnalyze } from './localAnalyze';
 import {
-  groupNameFromFolder, isGroupFolder, learnSenderGroups,
+  groupNameFromFolder, isGroupFolder, learnSenderGroups, FREE_MAIL,
   suggestGroupBySender, suggestGroupByName, listGroups,
 } from './groups';
 import { insertMail, getSyncState, setSyncState, findUnanalyzed } from './store';
@@ -52,6 +52,28 @@ export async function analyzeAndSave(mailDoc, settings) {
 function ownDomainOf(settings) {
   const u = (settings?.imapUser || settings?.smtpUser || '').toLowerCase();
   return u.includes('@') ? u.split('@')[1] : '';
+}
+
+/**
+ * 이 메일을 '우리가 보낸 것'으로 볼지.
+ *
+ * 회사 도메인(yogico.kr)이면 누가 보냈든 우리 쪽 메일이 맞다.
+ * 그런데 Gmail·네이버 같은 **개인 메일 계정을 등록하면 도메인이 gmail.com** 이라,
+ * 도메인만 보면 지메일에서 온 거래처 메일이 전부 '내가 보낸 메일'로 잡혀
+ * 브리핑에서 통째로 사라진다. 개인 메일 도메인은 주소가 정확히 같을 때만 본다.
+ */
+function isOutbound(fromAddress, account, settings) {
+  const from = String(fromAddress || '').toLowerCase();
+  if (!from) return false;
+
+  const me = String(account?.user || settings?.imapUser || '').toLowerCase();
+  if (me && from === me) return true;
+
+  const domain = from.split('@')[1] || '';
+  if (!domain || FREE_MAIL.has(domain)) return false;
+
+  const myDomain = (me.split('@')[1] || '') || ownDomainOf(settings);
+  return Boolean(myDomain) && domain === myDomain;
 }
 
 /**
@@ -95,8 +117,6 @@ async function retireFolders(settings, retired) {
 }
 
 async function ingestFolder(settings, folder, { limit, recent, learned, knownGroups = [], account }) {
-  // 계정마다 자기 도메인이 다르다 — 보낸/받은 판정은 그 계정 기준으로 해야 한다
-  const ownDomain = (account?.user || '').toLowerCase().split('@')[1] || ownDomainOf(settings);
   const accountId = account?.id || 'main';
   const state = await getSyncState(folder, accountId);
   const stat = {
@@ -146,13 +166,11 @@ async function ingestFolder(settings, folder, { limit, recent, learned, knownGro
         }
       }
 
-      // 보낸 메일인지 받은 메일인지. 우리 도메인에서 온 것은 '보낸 것'이다.
+      // 보낸 메일인지 받은 메일인지 — 브리핑은 할 일 목록이라 내가 쓴 메일은 빼야 한다.
       //   - 브리핑은 할 일 목록이다. 우리가 쓴 메일은 할 일이 아니다.
       //   - 요약 대기 1,589통 중 541통(34%)이 자사 발신이라 상한 20통을 잠식한다.
       // 보관·조회는 그대로 되고, 필요하면 상세에서 직접 요약을 돌릴 수 있다.
-      parsed.direction = ownDomain && (parsed.from?.address || '').toLowerCase().endsWith(`@${ownDomain}`)
-        ? 'out'
-        : 'in';
+      parsed.direction = isOutbound(parsed.from?.address, account, settings) ? 'out' : 'in';
 
       // 스레드 키는 거래처가 정해진 뒤에 만든다.
       // 같은 제목이라도 거래처가 다르면 다른 대화이므로 순서가 중요하다.
