@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import MailAccounts from '@/components/MailAccounts';
+import PasswordField from '@/components/PasswordField';
 
 const inp = {
   width: '100%', padding: '9px 12px', borderRadius: 8,
@@ -189,8 +190,13 @@ export default function SettingsPage() {
           <Field label="계정" flex={2}>
             <input style={inp} value={f.smtpUser || ''} onChange={set('smtpUser')} autoComplete="off" />
           </Field>
-          <Field label={f.smtpPassSet ? '비밀번호 (저장됨 · 변경 시만 입력)' : '비밀번호'} flex={2}>
-            <input style={inp} type="password" value={f.smtpPass || ''} onChange={set('smtpPass')} autoComplete="new-password" />
+          <Field label="비밀번호" flex={2}>
+            <PasswordField
+              value={f.smtpPass}
+              onValueChange={(v) => setF((p) => ({ ...p, smtpPass: v }))}
+              saved={Boolean(f.smtpPassSet)}
+              style={inp}
+            />
           </Field>
         </div>
         <div className="row" style={{ alignItems: 'flex-end', marginTop: 12 }}>

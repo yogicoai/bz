@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import PasswordField from '@/components/PasswordField';
 
 /**
  * 메일 계정 관리 — 여러 메일함(이카운트·Gmail·네이버)을 함께 수집할 때 쓴다.
@@ -200,13 +201,14 @@ export default function MailAccounts({
                   onChange={(e) => set(i, { user: e.target.value })} />
               </div>
               <div style={{ flex: '1 1 220px' }}>
-                <label>
-                  비밀번호
-                  {a.passSet && <span className="muted" style={{ fontWeight: 400 }}> · 저장되어 있음 (바꿀 때만 입력)</span>}
-                </label>
-                <input style={inp} type="password" value={a.pass || ''}
-                  placeholder={a.passSet ? '변경하지 않으려면 비워 두세요' : preset === 'gmail' ? '앱 비밀번호 16자리' : ''}
-                  onChange={(e) => set(i, { pass: e.target.value })} />
+                <label>비밀번호</label>
+                <PasswordField
+                  value={a.pass}
+                  onValueChange={(v) => set(i, { pass: v })}
+                  saved={Boolean(a.passSet)}
+                  placeholder={preset === 'gmail' ? '앱 비밀번호 16자리' : ''}
+                  style={inp}
+                />
               </div>
             </div>
 
