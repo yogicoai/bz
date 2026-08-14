@@ -130,6 +130,24 @@ export default function MailDetailPage({ params }) {
     setBusy(false);
   }
 
+  /**
+   * AI 없이 바로 쓰기.
+   *
+   * 간단한 회신("네, 확인했습니다")까지 AI 를 거칠 이유가 없고,
+   * 이미 문안이 머릿속에 있는 경우도 많다. 그럴 때 AI 초안을 기다리는 것은
+   * 방해다. 같은 편집 화면을 빈 본문으로 열어 준다.
+   */
+  function startBlank() {
+    const s = mail.subject || '';
+    setDraft({
+      subject: /^\s*re:/i.test(s) ? s : `Re: ${s}`,
+      body: '',
+      bodyKo: null,
+      notes: null,
+    });
+    setErr(''); setMsg('');
+  }
+
   /** 첨부 고르기 — 서버 요청 본문 한도가 있어 여기서 크기를 먼저 막는다 */
   const MAX_ATTACH = 3 * 1024 * 1024;
   async function addFiles(e) {
@@ -449,32 +467,66 @@ export default function MailDetailPage({ params }) {
           </div>
         )}
 
-        {/* ① 무엇을 전할지 */}
-        <div style={{ marginBottom: 6 }}>
-          <span className="badge b2b">1단계</span>{' '}
-          <b style={{ fontSize: 14 }}>무엇을 전할지 한국어로 적어 주세요</b>
-        </div>
-        <div className="muted" style={{ fontSize: 12, marginBottom: 8, lineHeight: 1.8 }}>
-          문장을 다듬을 필요 없이 요점만 적으시면 됩니다. <b>AI가 상대방 언어로</b>{' '}
-          인사말·본론·맺음말을 갖춘 메일 초안을 만들어 줍니다.
-          만들어진 초안은 <b>2단계에서 직접 고칠 수 있고</b>, 발송하기를 누르기 전에는 나가지 않습니다.
-        </div>
-        <textarea style={{ ...inp, minHeight: 90 }} value={intent} onChange={(e) => setIntent(e.target.value)}
-          placeholder="예) 재고 있고 MOQ는 100개, 샘플은 다음 주 화요일 발송 가능. FOB 부산 기준 단가는 확인 후 내일 회신하겠다고 전달" />
-        <div className="row" style={{ marginTop: 10 }}>
-          <button className="btn secondary" onClick={makeDraft} disabled={busy || !intent.trim()}>
-            {busy ? '만드는 중…' : '✨ AI 초안 만들기'}
-          </button>
-          {!intent.trim() && (
-            <span className="muted" style={{ fontSize: 12 }}>위에 전할 내용을 먼저 적어 주세요.</span>
-          )}
-        </div>
+        {/* ① 두 갈래 — AI 에게 맡기거나, 직접 쓰거나 */}
+        {!draft && (
+          <>
+            <div style={{ marginBottom: 6 }}>
+              <span className="badge b2b">1단계</span>{' '}
+              <b style={{ fontSize: 14 }}>어떻게 쓰시겠어요?</b>
+            </div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 12, lineHeight: 1.8 }}>
+              둘 중 편한 쪽을 고르시면 됩니다. 어느 쪽이든 <b>발송하기를 누르기 전에는 나가지 않고</b>,
+              보내기 직전에 확인 창에서 한 번 더 보여 드립니다.
+            </div>
+
+            <div className="split" style={{ gap: 12 }}>
+              {/* AI 에게 맡기기 */}
+              <div className="card" style={{ background: 'var(--panel-2)' }}>
+                <b style={{ fontSize: 14 }}>✨ AI 초안 만들기</b>
+                <div className="muted" style={{ fontSize: 12, margin: '6px 0 10px', lineHeight: 1.8 }}>
+                  전할 내용을 <b>한국어로 요점만</b> 적으면, 원문 맥락과 상대방 언어를 반영해
+                  인사말·본론·맺음말을 갖춘 메일로 정리해 줍니다.
+                </div>
+                <textarea style={{ ...inp, minHeight: 90 }} value={intent}
+                  onChange={(e) => setIntent(e.target.value)}
+                  placeholder="예) 재고 있고 MOQ는 100개, 샘플은 다음 주 화요일 발송 가능. 단가는 확인 후 내일 회신하겠다고 전달" />
+                <div className="row" style={{ marginTop: 10 }}>
+                  <button className="btn" onClick={makeDraft} disabled={busy || !intent.trim()}>
+                    {busy ? '만드는 중…' : '초안 만들기'}
+                  </button>
+                  {!intent.trim() && (
+                    <span className="muted" style={{ fontSize: 12 }}>전할 내용을 먼저 적어 주세요</span>
+                  )}
+                </div>
+              </div>
+
+              {/* 직접 쓰기 */}
+              <div className="card" style={{ background: 'var(--panel-2)' }}>
+                <b style={{ fontSize: 14 }}>✍️ 직접 작성하기</b>
+                <div className="muted" style={{ fontSize: 12, margin: '6px 0 10px', lineHeight: 1.8 }}>
+                  AI 없이 빈 화면에서 바로 쓰십니다. 짧은 회신이거나 문안이 이미 정해져 있을 때
+                  이쪽이 빠릅니다. 제목은 <b>Re:</b> 를 붙여 채워 둡니다.
+                </div>
+                <button className="btn secondary" onClick={startBlank} disabled={busy}>
+                  빈 메일로 시작하기
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
         {draft && (
           <div style={{ marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-            <div style={{ marginBottom: 12 }}>
-              <span className="badge b2b">2단계</span>{' '}
-              <b style={{ fontSize: 14 }}>보내기 전에 확인하고 고치세요</b>
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <span className="badge b2b">2단계</span>{' '}
+                <b style={{ fontSize: 14 }}>보내기 전에 확인하고 고치세요</b>
+              </div>
+              {/* 쓰는 방식을 잘못 골랐을 때 되돌아갈 길 */}
+              <button type="button" className="linklike"
+                onClick={() => { setDraft(null); setFiles([]); }} disabled={busy}>
+                ← 처음부터 다시
+              </button>
             </div>
 
             {draft.notes && draft.notes !== '확인 필요 사항 없음' && (
