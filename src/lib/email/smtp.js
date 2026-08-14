@@ -38,9 +38,10 @@ const escapeHtml = (s = '') => String(s)
  * 한글 글꼴 대체를 위해 지정 글꼴 뒤에 '맑은 고딕'을 항상 붙인다 —
  * Calibri 에는 한글 글리프가 없어서 그것만 지정하면 한글이 엉뚱한 글꼴로 나온다.
  */
-export function bodyToHtml(body = '', font = 'Calibri', size = 10) {
+export function bodyToHtml(body = '', font = 'Calibri', size = 10, lineHeight = 1.5) {
   const family = SAFE_FONTS.has(font) ? font : 'Calibri';
   const pt = Math.min(Math.max(Number(size) || 10, 8), 24);
+  const lh = Math.min(Math.max(Number(lineHeight) || 1.5, 1), 3);
   const stack = `'${family}', 'Malgun Gothic', '맑은 고딕', sans-serif`;
 
   const lines = escapeHtml(body).split(/\r?\n/);
@@ -48,9 +49,40 @@ export function bodyToHtml(body = '', font = 'Calibri', size = 10) {
     .map((l) => (l.trim() ? `<div>${l}</div>` : '<div>&nbsp;</div>'))
     .join('\n');
 
-  return `<div style="font-family:${stack};font-size:${pt}pt;line-height:1.5;color:#000;">
+  return `<div style="font-family:${stack};font-size:${pt}pt;line-height:${lh};color:#000;">
 ${html}
 </div>`;
+}
+
+/**
+ * 화면에서 올린 첨부(base64)를 nodemailer 형식으로.
+ * 서버리스 요청 본문 한도(4.5MB)가 있어 크기를 여기서 한 번 더 막는다 —
+ * 넘으면 발송이 통째로 실패하는데, 그 오류만으로는 원인을 알기 어렵다.
+ */
+const MAX_ATTACH_BYTES = 3 * 1024 * 1024;
+
+function buildAttachments(list = []) {
+  if (!Array.isArray(list) || !list.length) return undefined;
+
+  let total = 0;
+  const out = list.map((a) => {
+    const content = Buffer.from(String(a.content || ''), 'base64');
+    total += content.length;
+    return {
+      filename: a.filename || 'attachment',
+      content,
+      contentType: a.contentType || 'application/octet-stream',
+    };
+  });
+
+  if (total > MAX_ATTACH_BYTES) {
+    throw new Error(
+      `첨부파일이 너무 큽니다 (${(total / 1048576).toFixed(1)}MB). `
+      + `합쳐서 ${MAX_ATTACH_BYTES / 1048576}MB 까지 보낼 수 있습니다. `
+      + '큰 파일은 링크로 보내시거나 나눠서 보내세요.',
+    );
+  }
+  return out;
 }
 
 export async function sendReply(mail, draft) {
@@ -75,10 +107,20 @@ export async function sendReply(mail, draft) {
     // 글꼴·크기를 지정한 경우에만 HTML 로 보낸다.
     // 평문도 항상 함께 실어, HTML 을 막아 둔 수신자에게도 내용이 그대로 보이게 한다.
     text: draft.body,
-    html: draft.font || draft.fontSize ? bodyToHtml(draft.body, draft.font, draft.fontSize) : undefined,
+    html: draft.font || draft.fontSize
+      ? bodyToHtml(draft.body, draft.font, draft.fontSize, draft.lineHeight)
+      : undefined,
+    attachments: buildAttachments(draft.attachments),
     inReplyTo: mail.messageId,
     references: references.join(' '),
   };
+
+  // 받는 사람을 바꿔 보낸 경우(시험 발송 등)에는 원 대화에 묶지 않는다.
+  // 엉뚱한 사람의 메일함에서 남의 대화에 끼어 붙는 것을 막는다.
+  if (draft.to && draft.to !== mail.from?.address) {
+    delete payload.inReplyTo;
+    delete payload.references;
+  }
 
   if (isDryRun()) {
     console.log('[smtp] DRY RUN — 실제 발송하지 않음\n', JSON.stringify(payload, null, 2));

@@ -24,9 +24,11 @@ export async function POST(req, { params }) {
       body: body.body,
       to: body.to,
       cc: body.cc,
-      // 화면에서 고른 글꼴·크기 (없으면 평문으로 나간다)
+      // 화면에서 고른 글꼴·크기·줄간격 (없으면 평문으로 나간다)
       font: body.font,
       fontSize: body.fontSize,
+      lineHeight: body.lineHeight,
+      attachments: body.attachments,
     });
 
     const mails = await collections.mails();
@@ -39,6 +41,10 @@ export async function POST(req, { params }) {
             body: body.body,
             to: result.to,
             cc: body.cc || null,
+            // 첨부 내용은 남기지 않는다(용량) — 무엇을 붙였는지만
+            attachments: (body.attachments || []).map((a) => ({
+              filename: a.filename, size: a.size || 0,
+            })),
             sentAt: result.sentAt,
             sentMessageId: result.messageId,
             dryRun: result.dryRun,

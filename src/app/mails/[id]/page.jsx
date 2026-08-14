@@ -52,6 +52,11 @@ export default function MailDetailPage({ params }) {
   // 받는 사람 화면에 보일 글꼴·크기. 아웃룩 기본값과 같게 맞춰 둔다.
   const [font, setFont] = useState('Calibri');
   const [fontSize, setFontSize] = useState(10);
+  const [lineHeight, setLineHeight] = useState(1.5);
+  // 받는 사람·참조는 고칠 수 있어야 한다 — 시험 삼아 내 주소로 보내 보는 일이 잦다
+  const [to, setTo] = useState('');
+  const [cc, setCc] = useState('');
+  const [files, setFiles] = useState([]);
 
   async function load() {
     try {
@@ -59,6 +64,7 @@ export default function MailDetailPage({ params }) {
       if (!r.ok) throw new Error(r.error);
       setMail(r.mail);
       setThread(r.thread || []);
+      setTo((prev) => prev || r.mail.from?.address || '');
     } catch (e) { setErr(String(e.message || e)); }
   }
 
@@ -124,18 +130,58 @@ export default function MailDetailPage({ params }) {
     setBusy(false);
   }
 
+  /** 첨부 고르기 — 서버 요청 본문 한도가 있어 여기서 크기를 먼저 막는다 */
+  const MAX_ATTACH = 3 * 1024 * 1024;
+  async function addFiles(e) {
+    const picked = [...(e.target.files || [])];
+    e.target.value = ''; // 같은 파일을 다시 고를 수 있게
+    if (!picked.length) return;
+
+    const read = (f) => new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res({
+        filename: f.name,
+        size: f.size,
+        contentType: f.type || 'application/octet-stream',
+        content: String(fr.result).split(',')[1] || '',
+      });
+      fr.onerror = rej;
+      fr.readAsDataURL(f);
+    });
+
+    try {
+      const added = await Promise.all(picked.map(read));
+      const next = [...files, ...added];
+      const total = next.reduce((s, f) => s + f.size, 0);
+      if (total > MAX_ATTACH) {
+        setErr(`첨부파일이 너무 큽니다 (${(total / 1048576).toFixed(1)}MB). `
+          + '합쳐서 3MB 까지 보낼 수 있습니다. 큰 파일은 링크로 보내시거나 나눠서 보내세요.');
+        return;
+      }
+      setErr('');
+      setFiles(next);
+    } catch (e2) { setErr(String(e2.message || e2)); }
+  }
+
   async function send() {
     setBusy(true); setErr(''); setMsg('');
     try {
       const r = await fetch(`/api/mails/${id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject: draft.subject, body: draft.body, font, fontSize }),
+        body: JSON.stringify({
+          subject: draft.subject,
+          body: draft.body,
+          to: to.trim(),
+          cc: cc.trim() || undefined,
+          font, fontSize, lineHeight,
+          attachments: files,
+        }),
       }).then((x) => x.json());
       if (!r.ok) throw new Error(r.error);
       setConfirm(false);
       setMsg(r.message);
-      if (!r.dryRun) { setDraft(null); setIntent(''); }
+      if (!r.dryRun) { setDraft(null); setIntent(''); setFiles([]); setCc(''); }
       await load();
     } catch (e) { setErr(String(e.message || e)); setConfirm(false); }
     setBusy(false);
@@ -382,11 +428,14 @@ export default function MailDetailPage({ params }) {
         );
       })()}
 
-      {/* ── 답장 ── */}
+      {/* ── 답장 작성 ──
+          답장이라고 해도 결국은 메일 한 통을 쓰는 일이다. 받는 사람·참조·제목·
+          글꼴·첨부까지 여기서 다 끝나야 하고, 각 칸이 무엇인지 알 수 있어야 한다. */}
       <div className="card" style={{ marginBottom: 14 }}>
-        <div className="card-title">답장</div>
+        <div className="card-title">답장 작성</div>
+
         {dryRun ? (
-          <div className="card" style={{ borderColor: 'var(--warn)', marginBottom: 12, background: 'var(--warn-weak)' }}>
+          <div className="card" style={{ borderColor: 'var(--warn)', marginBottom: 14, background: 'var(--warn-weak)' }}>
             <b style={{ fontSize: 13 }}>지금은 시험 모드입니다 — 발송을 눌러도 메일이 나가지 않습니다</b>
             <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
               내용만 서버 기록에 남습니다. 실제로 보내려면 환경변수{' '}
@@ -394,77 +443,134 @@ export default function MailDetailPage({ params }) {
             </div>
           </div>
         ) : (
-          <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 14 }}>
             발송하기를 누르면 <b>실제로 메일이 나갑니다.</b> 누르기 전에 확인 창에서
             받는 사람과 내용을 다시 보여 드립니다.
           </div>
         )}
 
-        <label>전달할 내용 (한국어로 편하게 쓰세요 — 상대 언어로 변환됩니다)</label>
+        {/* ① 무엇을 전할지 */}
+        <div style={{ marginBottom: 6 }}>
+          <span className="badge b2b">1단계</span>{' '}
+          <b style={{ fontSize: 14 }}>무엇을 전할지 한국어로 적어 주세요</b>
+        </div>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8, lineHeight: 1.8 }}>
+          문장을 다듬을 필요 없이 요점만 적으시면 됩니다. <b>AI가 상대방 언어로</b>{' '}
+          인사말·본론·맺음말을 갖춘 메일 초안을 만들어 줍니다.
+          만들어진 초안은 <b>2단계에서 직접 고칠 수 있고</b>, 발송하기를 누르기 전에는 나가지 않습니다.
+        </div>
         <textarea style={{ ...inp, minHeight: 90 }} value={intent} onChange={(e) => setIntent(e.target.value)}
           placeholder="예) 재고 있고 MOQ는 100개, 샘플은 다음 주 화요일 발송 가능. FOB 부산 기준 단가는 확인 후 내일 회신하겠다고 전달" />
         <div className="row" style={{ marginTop: 10 }}>
           <button className="btn secondary" onClick={makeDraft} disabled={busy || !intent.trim()}>
-            {busy ? '생성 중…' : '초안 생성'}
+            {busy ? '만드는 중…' : '✨ AI 초안 만들기'}
           </button>
-        </div>
-        {/* 버튼만 있으면 무엇이 일어나는지 몰라 누르기를 망설이게 된다 */}
-        <div className="muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7 }}>
-          <b>초안 생성</b>을 누르면 위에 적으신 내용으로 <b>AI가 답장 초안을 만들어 줍니다.</b><br />
-          원문 메일의 맥락과 상대방이 쓰는 언어를 반영해, 인사말·본론·맺음말을 갖춘
-          메일 양식으로 정리됩니다. 만들어진 초안은 <b>발송 전에 직접 고칠 수 있고</b>,
-          발송하기를 누르기 전에는 나가지 않습니다.
+          {!intent.trim() && (
+            <span className="muted" style={{ fontSize: 12 }}>위에 전할 내용을 먼저 적어 주세요.</span>
+          )}
         </div>
 
         {draft && (
-          <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+          <div style={{ marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+            <div style={{ marginBottom: 12 }}>
+              <span className="badge b2b">2단계</span>{' '}
+              <b style={{ fontSize: 14 }}>보내기 전에 확인하고 고치세요</b>
+            </div>
+
             {draft.notes && draft.notes !== '확인 필요 사항 없음' && (
               <div className="card" style={{ borderColor: 'var(--warn)', marginBottom: 12, background: 'var(--panel-2)' }}>
-                <b>발송 전 확인</b>
-                <div style={{ marginTop: 4 }}>{draft.notes}</div>
+                <b style={{ fontSize: 13 }}>발송 전 확인</b>
+                <div style={{ marginTop: 4, fontSize: 13 }}>{draft.notes}</div>
               </div>
             )}
-            <label>받는 사람</label>
-            <input style={inp} value={mail.from?.address || ''} readOnly />
-            <label style={{ marginTop: 10 }}>제목</label>
-            <input style={inp} value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
-            <label style={{ marginTop: 10 }}>글꼴 · 크기 (받는 사람 화면에 이렇게 보입니다)</label>
-            <div className="row" style={{ marginBottom: 10 }}>
+
+            {/* 받는 사람 — 고칠 수 있어야 한다. 시험 삼아 내 주소로 보내 보는 일이 잦다. */}
+            <div className="row" style={{ alignItems: 'flex-end', gap: 10 }}>
+              <div style={{ flex: 2, minWidth: 220 }}>
+                <label>받는 사람</label>
+                <input style={inp} value={to} onChange={(e) => setTo(e.target.value)}
+                  placeholder="someone@example.com" />
+              </div>
+              <div style={{ flex: 2, minWidth: 220 }}>
+                <label>참조 (여러 명은 쉼표로)</label>
+                <input style={inp} value={cc} onChange={(e) => setCc(e.target.value)}
+                  placeholder="비워 두어도 됩니다" />
+              </div>
+            </div>
+            <div className="row" style={{ marginTop: 6, gap: 8 }}>
+              {to !== (mail.from?.address || '') && (
+                <button type="button" className="linklike" onClick={() => setTo(mail.from?.address || '')}>
+                  원래 보낸 사람({mail.from?.address})으로 되돌리기
+                </button>
+              )}
+              <span className="muted" style={{ fontSize: 12 }}>
+                주소를 바꾸면 원 대화에 묶지 않고 새 메일로 나갑니다 — 시험 발송에 쓰세요.
+              </span>
+            </div>
+
+            <label style={{ marginTop: 14 }}>제목</label>
+            <input style={inp} value={draft.subject}
+              onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
+
+            {/* 글꼴 — 받는 사람 화면에 보일 모습 */}
+            <label style={{ marginTop: 14 }}>글꼴 · 크기 · 줄간격</label>
+            <div className="row" style={{ marginBottom: 8 }}>
               <select style={{ ...inp, width: 'auto' }} value={font} onChange={(e) => setFont(e.target.value)}>
                 {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
               <select style={{ ...inp, width: 'auto' }} value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))}>
                 {[8, 9, 10, 11, 12, 14, 16, 18].map((n) => <option key={n} value={n}>{n} pt</option>)}
               </select>
-              <span className="muted" style={{ fontSize: 12 }}>
-                한글은 자동으로 맑은 고딕으로 표시됩니다
-              </span>
+              <select style={{ ...inp, width: 'auto' }} value={lineHeight} onChange={(e) => setLineHeight(Number(e.target.value))}>
+                {[1, 1.2, 1.5, 1.8, 2].map((n) => <option key={n} value={n}>줄간격 {n}</option>)}
+              </select>
+              <span className="muted" style={{ fontSize: 12 }}>한글은 자동으로 맑은 고딕으로 표시됩니다</span>
             </div>
 
-            <label>본문 (실제 발송 내용 — 직접 수정 가능)</label>
+            <label>본문 <span className="muted" style={{ fontWeight: 400 }}>— 아래 모습 그대로 나갑니다</span></label>
             <textarea
               style={{
-                ...inp, minHeight: 220,
-                // 편집 중에도 발송될 모습 그대로 보이게 한다
+                ...inp, minHeight: 240,
                 fontFamily: `'${font}', 'Malgun Gothic', sans-serif`,
                 fontSize: `${fontSize}pt`,
-                lineHeight: 1.5,
+                lineHeight,
               }}
               value={draft.body}
               onChange={(e) => setDraft({ ...draft, body: e.target.value })}
             />
 
+            {/* 첨부 */}
+            <label style={{ marginTop: 14 }}>
+              첨부파일 <span className="muted" style={{ fontWeight: 400 }}>— 합쳐서 3MB 까지</span>
+            </label>
+            <input type="file" multiple onChange={addFiles} style={{ ...inp, padding: 8 }} />
+            {files.length > 0 && (
+              <div className="row" style={{ gap: 6, marginTop: 8 }}>
+                {files.map((f, i) => (
+                  <span key={i} className="chip on">
+                    📎 {f.filename} ({Math.round(f.size / 1024).toLocaleString()}KB)
+                    <button type="button" className="linklike" style={{ marginLeft: 6 }}
+                      onClick={() => setFiles(files.filter((_, n) => n !== i))}>빼기</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
             {draft.bodyKo && (
               <>
-                <label style={{ marginTop: 10 }}>본문 한글 확인용 (발송되지 않음)</label>
+                <label style={{ marginTop: 14 }}>
+                  한글 확인용 <span className="muted" style={{ fontWeight: 400 }}>— 발송되지 않습니다</span>
+                </label>
                 <div className="card" style={{ background: 'var(--panel-2)' }}>
                   <div className="mailbody" style={{ maxHeight: 260 }}>{draft.bodyKo}</div>
                 </div>
               </>
             )}
 
-            <div className="row" style={{ marginTop: 14 }}>
-              <button className="btn" onClick={() => setConfirm(true)} disabled={busy}>발송하기</button>
+            <div className="row" style={{ marginTop: 16 }}>
+              <button className="btn" onClick={() => setConfirm(true)} disabled={busy || !to.trim()}>
+                발송하기
+              </button>
               <button className="btn secondary" onClick={() => setDraft(null)} disabled={busy}>초안 버리기</button>
             </div>
           </div>
@@ -475,12 +581,15 @@ export default function MailDetailPage({ params }) {
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>발송 이력</div>
             {mail.drafts.filter((d) => d.sentAt).map((d, i) => (
               <div key={i} className="muted" style={{ fontSize: 12 }}>
-                {fmt(d.sentAt)} → {d.to} · {d.subject} {d.dryRun && <span className="badge">DRY RUN</span>}
+                {fmt(d.sentAt)} → {d.to} · {d.subject}
+                {d.attachments?.length > 0 && ` · 첨부 ${d.attachments.length}개`}
+                {d.dryRun && <span className="badge"> 시험</span>}
               </div>
             ))}
           </div>
         )}
       </div>
+
 
       {/* ── 발송 확인 모달 ── */}
       {confirm && draft && (
@@ -489,24 +598,47 @@ export default function MailDetailPage({ params }) {
             <div className="card-title" style={{ fontSize: 15 }}>이 내용으로 발송합니다</div>
             <div style={{ marginBottom: 12 }}>
               <div className="muted" style={{ fontSize: 12 }}>받는 사람</div>
-              <div style={{ fontWeight: 600 }}>{mail.from?.address}</div>
+              {/* 화면에서 고친 주소를 그대로 보여 준다 — 원 발신자를 띄우면
+                  시험 삼아 내 주소로 바꿔 놓고도 상대에게 가는 줄 알게 된다 */}
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{to}</div>
+              {to !== (mail.from?.address || '') && (
+                <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 2 }}>
+                  원래 보낸 사람({mail.from?.address})이 아닌 주소입니다.
+                </div>
+              )}
             </div>
+            {cc.trim() && (
+              <div style={{ marginBottom: 12 }}>
+                <div className="muted" style={{ fontSize: 12 }}>참조</div>
+                <div style={{ fontWeight: 600 }}>{cc}</div>
+              </div>
+            )}
             <div style={{ marginBottom: 12 }}>
               <div className="muted" style={{ fontSize: 12 }}>제목</div>
               <div style={{ fontWeight: 600 }}>{draft.subject}</div>
             </div>
-            <div className="muted" style={{ fontSize: 12 }}>본문</div>
+            {files.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div className="muted" style={{ fontSize: 12 }}>첨부 {files.length}개</div>
+                <div style={{ fontSize: 13 }}>
+                  {files.map((f) => `${f.filename} (${Math.round(f.size / 1024).toLocaleString()}KB)`).join(', ')}
+                </div>
+              </div>
+            )}
+            <div className="muted" style={{ fontSize: 12 }}>
+              본문 · {font} {fontSize}pt · 줄간격 {lineHeight}
+            </div>
             <div className="card" style={{ background: 'var(--panel-2)', marginTop: 4 }}>
               <div className="mailbody" style={{ maxHeight: 300 }}>{draft.body}</div>
             </div>
             {dryRun && (
               <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-                DRY RUN 모드 — 실제로 발송되지 않습니다.
+                시험 모드 — 실제로 발송되지 않습니다.
               </div>
             )}
             <div className="row" style={{ marginTop: 18, justifyContent: 'flex-end' }}>
               <button className="btn secondary" onClick={() => setConfirm(false)} disabled={busy}>취소</button>
-              <button className="btn" onClick={send} disabled={busy}>{busy ? '발송 중…' : dryRun ? 'DRY RUN 실행' : '발송'}</button>
+              <button className="btn" onClick={send} disabled={busy}>{busy ? '발송 중…' : dryRun ? '시험 실행' : '발송'}</button>
             </div>
           </div>
         </div>
