@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Loading, { Spinner } from '@/components/Loading';
 
 function LoginForm() {
   const router = useRouter();
@@ -58,7 +59,7 @@ function LoginForm() {
         />
 
         {setup === null ? (
-          <div className="muted" style={{ fontSize: 13 }}>확인 중…</div>
+          <Loading text="확인 중…" size="sm" style={{ padding: '18px 0' }} />
         ) : (
           <>
             {setup && (
@@ -82,7 +83,7 @@ function LoginForm() {
             {err && <div style={{ color: 'var(--bad)', fontSize: 12, marginTop: 10 }}>{err}</div>}
 
             <button className="btn" style={{ width: '100%', justifyContent: 'center', marginTop: 16 }} disabled={busy}>
-              {busy ? '처리 중…' : setup ? '비밀번호 설정하고 시작' : '로그인'}
+              {busy ? <><Spinner /> 처리 중…</> : setup ? '비밀번호 설정하고 시작' : '로그인'}
             </button>
           </>
         )}

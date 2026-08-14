@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, use } from 'react';
 import Link from 'next/link';
+import Loading from '@/components/Loading';
 import TrashButton from '@/components/TrashButton';
 import {
   STATUSES, classificationLabel, statusLabel, langLabel,
@@ -168,7 +169,7 @@ export default function AccountPage({ params }) {
 
       <div className="card" style={{ padding: 0 }}>
         {busy && !items.length ? (
-          <div className="empty">불러오는 중…</div>
+          <Loading />
         ) : !shown.length ? (
           <div className="empty">
             {view === 'all' ? '조건에 맞는 메일이 없습니다.' : `${VIEWS[view].label}에 해당하는 메일이 없습니다.`}

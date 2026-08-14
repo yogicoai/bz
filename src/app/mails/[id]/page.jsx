@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
+import Loading from '@/components/Loading';
 import TrashButton from '@/components/TrashButton';
 import {
   CLASSIFICATIONS, STATUSES,
@@ -206,7 +207,7 @@ export default function MailDetailPage({ params }) {
   }
 
   if (err && !mail) return <div className="card" style={{ borderColor: 'var(--bad)' }}>{err}</div>;
-  if (!mail) return <div className="empty">불러오는 중…</div>;
+  if (!mail) return <Loading />;
 
   const a = mail.analysis;
   const t = mail.translation;

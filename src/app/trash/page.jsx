@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import Loading from '@/components/Loading';
 import { classificationLabel, langLabel } from '@/lib/labels';
 
 /**
@@ -58,7 +59,7 @@ export default function TrashPage() {
 
       <div className="card" style={{ padding: 0 }}>
         {busy && !items.length ? (
-          <div className="empty">불러오는 중…</div>
+          <Loading />
         ) : !items.length ? (
           <div className="empty">
             휴지통으로 보낸 메일이 없습니다.

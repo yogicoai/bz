@@ -9,6 +9,8 @@ import {
 // 대화 묶어보기가 기본값이라 이 함수는 목록의 모든 행에서 불린다.
 // import 가 빠져 있어 화면이 통째로 죽었다 — thread.js 는 순수 함수만 있어 클라이언트에서 안전하다.
 import { displaySubject } from '@/lib/mail/thread';
+import AccountTag, { useAccountTags } from '@/components/AccountTag';
+import Loading, { Spinner } from '@/components/Loading';
 
 const inp = {
   padding: '8px 11px', borderRadius: 8, border: '1px solid var(--border)',
@@ -19,6 +21,8 @@ const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit' }) : '-';
 
 function MailsInner() {
+  // 메일함이 둘 이상일 때만 '어디서 온 메일인지' 를 행마다 붙인다
+  const { show: showAccount, accounts } = useAccountTags();
   const [items, setItems] = useState([]);
   const [count, setCount] = useState(0);
   const [busy, setBusy] = useState(true);
@@ -125,13 +129,13 @@ function MailsInner() {
           <p className="page-sub">
             {/* 데이터가 오기 전에 '0건'을 보여주면 비어 있는 것처럼 읽힌다 */}
             {busy && !items.length
-              ? '불러오는 중…'
+              ? <Loading inline text="불러오는 중…" size="sm" />
               : (f.threaded ? `대화 ${count.toLocaleString()}건` : `총 ${count.toLocaleString()}통`)}
           </p>
         </div>
         <div className="row">
           <button className="btn secondary" onClick={() => ingest(20)} disabled={busy}>최근 20통 가져오기</button>
-          <button className="btn" onClick={() => ingest()} disabled={busy}>{busy ? '처리 중…' : '새 메일 수집'}</button>
+          <button className="btn" onClick={() => ingest()} disabled={busy}>{busy ? <><Spinner /> 수집 중…</> : '새 메일 수집'}</button>
         </div>
       </div>
 
@@ -231,7 +235,7 @@ function MailsInner() {
 
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         {busy && !items.length ? (
-          <div className="empty">불러오는 중…</div>
+          <Loading />
         ) : !items.length ? (
           <div className="empty">
             메일이 없습니다. 우측 상단의 <b>최근 20통 가져오기</b>로 시작하세요.
@@ -269,6 +273,11 @@ function MailsInner() {
                   <td style={{ fontSize: 12, wordBreak: 'break-all' }}>
                     <div>{m.from?.name || m.from?.address}</div>
                     {m.from?.name && <div className="muted" style={{ fontSize: 11 }}>{m.from.address}</div>}
+                    {showAccount && (
+                      <div style={{ marginTop: 3 }}>
+                        <AccountTag accountId={m.accountId} accounts={accounts} show={showAccount} />
+                      </div>
+                    )}
                   </td>
                   <td>
                     <Link href={`/mails/${m._id}`} style={{ fontWeight: 600 }}>
@@ -318,5 +327,5 @@ function MailsInner() {
 }
 
 export default function MailsPage() {
-  return <Suspense fallback={<div className="empty">불러오는 중…</div>}><MailsInner /></Suspense>;
+  return <Suspense fallback={<Loading />}><MailsInner /></Suspense>;
 }

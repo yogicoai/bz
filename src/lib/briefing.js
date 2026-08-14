@@ -19,6 +19,8 @@ const MISSED_LOOKBACK_DAYS = 30;
 const PROJECTION = {
   subject: 1, 'translation.subject': 1, from: 1, date: 1, receivedAt: 1,
   status: 1, classification: 1, lang: 1, memo: 1, group: 1, groupBy: 1,
+  // 메일함을 여럿 쓰면 "이게 어디로 온 건지" 가 판단에 들어간다
+  accountId: 1,
   'analysis.topic': 1, 'analysis.summary': 1, 'analysis.keyPoints': 1,
   'analysis.intent': 1, 'analysis.suggestedAction': 1, 'analysis.needsReply': 1,
   'analysis.deadline': 1, 'analysis.deadlineType': 1, 'analysis.urgency': 1,

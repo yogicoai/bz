@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import PasswordField from '@/components/PasswordField';
+import { Spinner } from '@/components/Loading';
 
 /**
  * 메일 계정 관리 — 여러 메일함(이카운트·Gmail·네이버)을 함께 수집할 때 쓴다.
@@ -83,9 +84,10 @@ function HealthBadge({ h }) {
 }
 
 export default function MailAccounts({
-  accounts, onChange, allowAdd = false, onSave, saving = false, status = [],
+  accounts, onChange, allowAdd = false, onSave, saving = false, status = [], onRemoved,
 }) {
   const [testing, setTesting] = useState(null);
+  const [removing, setRemoving] = useState(null);
   const [result, setResult] = useState({});
   const health = new Map((status || []).map((s) => [s.id, s]));
 
@@ -103,11 +105,49 @@ export default function MailAccounts({
     }]);
   }
 
-  function remove(i) {
+  /**
+   * 계정 빼기 — **그 계정으로 가져온 메일도 함께 지운다**.
+   *
+   * 목록에서만 빼고 메일을 남기면, 더 이상 없는 메일함의 메일이 브리핑·기한·
+   * 검색에 계속 섞여 나오고 치울 방법이 없다. 시험 삼아 붙였다 떼는 것이
+   * 실제 사용 방식이라, 뗄 때 통째로 사라지는 편이 예상에 맞는다.
+   */
+  async function remove(i) {
     const a = accounts[i];
-    if (!confirm(`'${a.label || a.user || '이 계정'}' 을 목록에서 뺍니다.\n`
-      + '이미 수집된 메일은 지워지지 않고, 앞으로 이 계정에서 새로 가져오지 않습니다.')) return;
-    onChange(accounts.filter((_, n) => n !== i));
+    const name = a.label || a.user || '이 계정';
+
+    // 아직 저장하지 않은(서버가 모르는) 계정은 목록에서 빼기만 하면 된다
+    if (!a.id || !health.has(a.id)) {
+      onChange(accounts.filter((_, n) => n !== i));
+      return;
+    }
+
+    const n = health.get(a.id)?.total || 0;
+    if (!confirm(
+      `'${name}' 계정을 뺍니다.\n\n`
+      + (n
+        ? `이 계정으로 가져온 메일 ${n.toLocaleString()}통도 함께 삭제됩니다.\n`
+          + '브리핑·기한·검색에서도 모두 사라지며, 되돌릴 수 없습니다.\n\n'
+        : '가져온 메일이 아직 없습니다.\n\n')
+      + `원본 메일은 ${name} 메일함에 그대로 있습니다 — 지워지는 것은 이 도구가 가져와 둔 사본입니다.\n`
+      + '저장하지 않은 다른 변경 사항은 되돌아갑니다.\n\n계속할까요?',
+    )) return;
+
+    setRemoving(a.id);
+    try {
+      const r = await fetch('/api/accounts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: a.id }),
+      }).then((x) => x.json());
+      if (!r.ok) throw new Error(r.error);
+      alert(`'${r.label}' 계정을 뺐습니다. 함께 삭제된 메일 ${(r.deletedMails || 0).toLocaleString()}통.`);
+      if (onRemoved) onRemoved();
+      else onChange(accounts.filter((_, n2) => n2 !== i));
+    } catch (e) {
+      alert(`계정을 빼지 못했습니다 — ${String(e.message || e)}`);
+    }
+    setRemoving(null);
   }
 
   async function test(i) {
@@ -139,6 +179,11 @@ export default function MailAccounts({
         <div className="muted" style={{ fontSize: 13, lineHeight: 1.8, marginBottom: 12 }}>
           Gmail·네이버처럼 <b>다른 메일함도 함께</b> 가져오려면 아래 <b>+ 메일 계정 추가</b>를 누르세요.
           여기 등록한 계정들만 수집하므로, <b>지금 쓰시던 메일함도 목록에 남아 있어야 합니다.</b>
+          <div style={{ marginTop: 6 }}>
+            계정을 <b>빼면 그동안 그 계정에서 가져온 메일도 함께 삭제됩니다</b> — 브리핑·기한·검색에서도
+            모두 사라지며 되돌릴 수 없습니다. (원본 메일은 각자의 메일함에 그대로 있습니다.)
+            잠깐 멈추기만 하려면 빼지 말고 <b>[수집함]</b> 체크를 끄세요.
+          </div>
         </div>
       )}
 
@@ -159,7 +204,11 @@ export default function MailAccounts({
                     onChange={(e) => set(i, { enabled: e.target.checked })} />
                   수집함
                 </label>
-                <button type="button" className="btn secondary sm" onClick={() => remove(i)}>빼기</button>
+                <button type="button" className="btn secondary sm"
+                  onClick={() => remove(i)} disabled={removing === a.id}
+                  title="계정을 빼면 이 계정으로 가져온 메일도 함께 삭제됩니다">
+                  {removing === a.id ? <><Spinner /> 빼는 중…</> : '빼기'}
+                </button>
               </div>
             </div>
 
@@ -226,7 +275,7 @@ export default function MailAccounts({
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <button type="button" className="btn secondary sm"
                 onClick={() => test(i)} disabled={testing === i || !a.host || !a.user}>
-                {testing === i ? '확인 중…' : '연결 테스트'}
+                {testing === i ? <><Spinner /> 확인 중…</> : '연결 테스트'}
               </button>
               {r && (
                 <span style={{ fontSize: 13, color: r.ok ? 'var(--good)' : 'var(--bad)' }}>
@@ -293,7 +342,7 @@ export default function MailAccounts({
         )}
         {onSave && (
           <button type="button" className="btn" onClick={onSave} disabled={saving}>
-            {saving ? '저장 중…' : '메일 계정 저장'}
+            {saving ? <><Spinner /> 저장 중…</> : '메일 계정 저장'}
           </button>
         )}
         <span className="muted" style={{ fontSize: 12 }}>

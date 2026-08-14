@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import MailAccounts from '@/components/MailAccounts';
 import PasswordField from '@/components/PasswordField';
+import Loading, { Spinner } from '@/components/Loading';
 
 const inp = {
   width: '100%', padding: '9px 12px', borderRadius: 8,
@@ -123,7 +124,7 @@ export default function SettingsPage() {
 
 
   if (err && !f) return <div className="card" style={{ borderColor: 'var(--bad)' }}>{err}</div>;
-  if (!f) return <div className="empty">불러오는 중…</div>;
+  if (!f) return <Loading />;
 
   return (
     <>
@@ -151,6 +152,8 @@ export default function SettingsPage() {
           onSave={save}
           saving={busy}
           status={status}
+          // 계정을 빼면 서버가 설정과 메일을 함께 정리한다 — 화면을 다시 읽어 맞춘다
+          onRemoved={() => window.location.reload()}
         />
       </Section>
 
@@ -270,7 +273,7 @@ export default function SettingsPage() {
       </Section>
 
       <div className="row" style={{ marginTop: 20, marginBottom: 24 }}>
-        <button className="btn" onClick={save} disabled={busy}>{busy ? '처리 중…' : '저장'}</button>
+        <button className="btn" onClick={save} disabled={busy}>{busy ? <><Spinner /> 저장 중…</> : '저장'}</button>
       </div>
     </>
   );

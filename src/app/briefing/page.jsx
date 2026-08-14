@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import AccountAlert from '@/components/AccountAlert';
 import TrashButton from '@/components/TrashButton';
+import AccountTag, { useAccountTags } from '@/components/AccountTag';
+import Loading, { Spinner } from '@/components/Loading';
 import {
   classificationLabel, deadlineTypeLabel, urgencyLabel, ddayLabel, ddayTone, langLabel,
 } from '@/lib/labels';
@@ -35,6 +37,8 @@ const fmtDay = (d) =>
   d ? new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit' }) : '-';
 
 function BriefingInner() {
+  // 메일함이 둘 이상일 때만 '어느 메일함으로 왔는지' 를 줄마다 붙인다
+  const { show: showAccount, accounts } = useAccountTags();
   const [date, setDate] = useState(kstToday());
   const [days, setDays] = useState(1);
   const [includeDone, setIncludeDone] = useState(false);
@@ -166,7 +170,7 @@ function BriefingInner() {
       </div>
 
       {busy && !b ? (
-        <div className="empty">불러오는 중…</div>
+        <Loading />
       ) : !b ? null : (
         <>
           {/* 숫자를 보여주기만 하면 "그래서 그 4건이 뭔데" 를 찾으러 목록을 훑어야 한다.
@@ -227,7 +231,7 @@ function BriefingInner() {
                   </div>
                 </div>
                 <button className="btn" onClick={analyzeAll} disabled={busy}>
-                  {busy ? '생성 중…' : `${Math.min(b.unanalyzed, 20)}건 요약 생성`}
+                  {busy ? <><Spinner /> 생성 중…</> : `${Math.min(b.unanalyzed, 20)}건 요약 생성`}
                 </button>
               </div>
             </div>
@@ -251,7 +255,8 @@ function BriefingInner() {
           ) : (
             shown.map((m, i) => (
               <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)}
-                onTrashed={load} canTrash={Boolean(features.trash)} />
+                onTrashed={load} canTrash={Boolean(features.trash)}
+                accounts={accounts} showAccount={showAccount} />
             ))
           )}
 
@@ -262,7 +267,7 @@ function BriefingInner() {
   );
 }
 
-function Item({ mail, index, onToggle, onTrashed, canTrash }) {
+function Item({ mail, index, onToggle, onTrashed, canTrash, accounts, showAccount }) {
   const a = mail.analysis || {};
   const done = ['replied', 'archived', 'ignored'].includes(mail.status);
 
@@ -291,6 +296,8 @@ function Item({ mail, index, onToggle, onTrashed, canTrash }) {
             )}
             {mail.group && <span className="badge b2b">{mail.group}</span>}
             <span className={`badge ${mail.classification}`}>{classificationLabel(mail.classification)}</span>
+            {/* 메일함을 여럿 쓰면 "이게 어느 메일함으로 온 건지" 가 곧 판단이다 */}
+            <AccountTag accountId={mail.accountId} accounts={accounts} show={showAccount} />
             {a.method !== 'ai' && <span className="badge">요약 없음</span>}
 
             {/* 목록에서 바로 버릴 수 있게. 누르면 확인 창이 한 번 뜬다.
@@ -350,5 +357,5 @@ function Stat({ label, value, sub, tone, active, onClick }) {
 }
 
 export default function BriefingPage() {
-  return <Suspense fallback={<div className="empty">불러오는 중…</div>}><BriefingInner /></Suspense>;
+  return <Suspense fallback={<Loading />}><BriefingInner /></Suspense>;
 }

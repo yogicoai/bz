@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Spinner } from '@/components/Loading';
 
 /**
  * 목록에서 바로 '검토 완료' 처리.
@@ -49,7 +50,7 @@ export default function ReviewDone({ id }) {
         onClick={() => set('archived')}
         title="읽고 판단이 끝났습니다. 목록에서 빠지고 숫자에서도 제외됩니다."
       >
-        {state === 'busy' ? '처리 중…' : '검토 완료'}
+        {state === 'busy' ? <><Spinner /> 처리 중…</> : '검토 완료'}
       </button>
       {err && <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>{err}</div>}
     </span>

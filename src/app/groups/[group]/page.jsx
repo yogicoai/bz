@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, use, Suspense } from 'react';
 import Link from 'next/link';
+import Loading from '@/components/Loading';
 import TrashButton from '@/components/TrashButton';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -205,7 +206,7 @@ function GroupInner({ params }) {
 
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         {busy && !items.length ? (
-          <div className="empty">불러오는 중…</div>
+          <Loading />
         ) : !shown.length ? (
           <div className="empty">
             {view === 'all'
@@ -304,7 +305,7 @@ function Stat({ label, value, sub, tone, active, onClick }) {
 // useSearchParams 를 쓰는 화면은 Suspense 로 감싸야 한다 (Next App Router 규칙)
 export default function GroupPage({ params }) {
   return (
-    <Suspense fallback={<div className="empty">불러오는 중…</div>}>
+    <Suspense fallback={<Loading />}>
       <GroupInner params={params} />
     </Suspense>
   );
