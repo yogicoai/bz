@@ -116,6 +116,8 @@ function BriefingInner() {
           <h1 className="page-title">오늘의 제안 브리핑</h1>
           <p className="page-sub">
             들어온 제안 메일을 하루 단위로 묶어 보여줍니다. 위에서부터 확인하고 체크해 내려가세요.
+            {/* 체크한 것이 어디로 가는지 알려 준다 — 모르면 체크를 망설이게 된다 */}
+            {' '}체크한 건은 <Link href="/done" style={{ color: 'var(--accent)' }}>검토 완료</Link>로 넘어갑니다.
           </p>
         </div>
       </div>
