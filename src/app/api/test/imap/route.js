@@ -16,6 +16,28 @@ export async function POST(req) {
     let override = {};
     try { override = await req.json(); } catch { /* 본문 없이 호출 가능 */ }
 
+    // 계정 목록에서 온 테스트 — 화면이 아직 저장하지 않은 값으로도 확인할 수 있어야 한다.
+    // 비밀번호가 비어 있으면(이미 저장된 계정을 다시 테스트하는 경우) 저장된 값을 쓴다.
+    if (override.account) {
+      const a = override.account;
+      const stored = (saved.imapAccounts || []).find((x) => x.id === a.id);
+      const settings = {
+        ...saved,
+        imapHost: a.host,
+        imapPort: Number(a.port) || 993,
+        imapSecure: a.secure !== false,
+        imapUser: a.user,
+        imapPass: a.pass || stored?.pass || '',
+        imapFolder: a.folder || 'INBOX',
+      };
+      const result = await testConnection(settings);
+      return NextResponse.json({
+        ok: true,
+        ...result,
+        message: `연결 성공 — 폴더 ${result.folders?.length ?? 0}개를 읽었습니다.`,
+      });
+    }
+
     // 비밀번호는 빈 값이면 저장된 것을 사용
     const settings = { ...saved };
     for (const k of ['imapHost', 'imapPort', 'imapSecure', 'imapUser', 'imapFolder']) {

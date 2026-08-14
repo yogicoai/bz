@@ -204,9 +204,18 @@ const FRESH_SINCE = () => new Date(Date.now() - FRESH_DAYS * 86400000);
 
 export async function listGroups() {
   const mails = await collections.mails();
+
+  // 메일함에서 지운 폴더는 목록에서도 뺀다. 폴더 정리는 분류를 바꾸는 일이므로
+  // 화면이 그것을 따라가야 한다 — 메일 자체는 지우지 않으므로 검색으로는 계속 찾힌다.
+  let retired = [];
+  try {
+    const { getSettings } = await import('@/lib/settings');
+    retired = (await getSettings())?.retiredGroups || [];
+  } catch { /* 설정을 못 읽으면 전부 보여준다 */ }
+
   const rows = await mails
     .aggregate([
-      { $match: { group: { $ne: null } } },
+      { $match: { group: retired.length ? { $ne: null, $nin: retired } : { $ne: null } } },
       {
         $group: {
           _id: '$group',

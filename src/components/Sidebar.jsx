@@ -32,6 +32,7 @@ export default function Sidebar({ open = false, onClose }) {
   const path = usePathname();
   const [todayCount, setTodayCount] = useState(null);
   const [groups, setGroups] = useState([]);
+  const [accounts, setAccounts] = useState([]);
 
   // 오늘 처리할 제안 건수 — 브리핑 메뉴 배지
   useEffect(() => {
@@ -49,6 +50,18 @@ export default function Sidebar({ open = false, onClose }) {
     fetch('/api/groups')
       .then((r) => r.json())
       .then((r) => { if (alive && r.ok) setGroups(r.groups); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [path]);
+
+  // 메일 계정 — 여러 메일함을 등록한 경우에만 나온다.
+  // 계정이 여럿이면 사람의 머릿속 첫 구분은 거래처가 아니라
+  // "이건 회사 메일, 이건 네이버로 온 것" 이라서 거래처보다 위에 둔다.
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/accounts')
+      .then((r) => r.json())
+      .then((r) => { if (alive && r.ok) setAccounts(r.accounts || []); })
       .catch(() => {});
     return () => { alive = false; };
   }, [path]);
@@ -91,6 +104,30 @@ export default function Sidebar({ open = false, onClose }) {
               );
             })}
           </nav>
+
+          {/* 메일 계정 — 여러 개 등록했을 때만. 한 곳만 쓰면 이 구분이 의미가 없다. */}
+          {gi === 0 && accounts.length > 1 && (
+            <div style={{ marginTop: 18 }}>
+              <div className="nav-group-title">메일 계정</div>
+              <nav className="nav">
+                {accounts.map((a) => {
+                  const href = `/accounts/${encodeURIComponent(a.id)}`;
+                  return (
+                    <Link key={a.id} href={href}
+                      className={decodeURIComponent(path) === decodeURIComponent(href) ? 'active' : ''}>
+                      <span className="label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span aria-hidden style={{ marginRight: 8 }}>✉️</span>
+                        {a.label}
+                      </span>
+                      {a.fresh > 0
+                        ? <span className="nav-badge" title={`최근 한 달 확인하지 않은 메일 ${a.fresh}건`}>{a.fresh}</span>
+                        : <span className="nav-count" title={`최근 한 달 ${a.recent}통 · 전체 ${a.total.toLocaleString()}통`}>{a.recent}</span>}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
 
           {/* '관리' 바로 아래에 거래처 목록을 붙인다 — 웹메일의 '내 메일함' 과 같은 위치감 */}
           {gi === 0 && groups.length > 0 && (

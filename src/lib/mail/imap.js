@@ -51,6 +51,16 @@ async function withClient(settings, fn) {
  * 연결 테스트 — 폴더 목록과 대상 폴더의 메일 수를 반환.
  * 설정 화면의 "연결 테스트" 버튼이 호출한다.
  */
+/** 메일함에 실제로 존재하는 폴더 목록만 가볍게 읽는다 (LIST 한 번) */
+export async function listMailboxes(settings) {
+  return withClient(settings, async (client) => {
+    const boxes = await client.list();
+    return boxes
+      .filter((b) => !b.flags?.has?.('\\Noselect'))
+      .map((b) => b.path);
+  });
+}
+
 export async function testConnection(settings) {
   return withClient(settings, async (client) => {
     const boxes = await client.list();

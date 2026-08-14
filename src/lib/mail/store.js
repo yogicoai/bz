@@ -56,10 +56,15 @@ export async function updateMail(id, patch) {
 
 /** 목록 필터 조건 — 낱개 조회와 스레드 조회가 같은 규칙을 쓰도록 분리했다 */
 function buildMailQuery({
-  classification, status, lang, needsReply, from, q, group, since, until,
+  classification, status, lang, needsReply, from, q, group, since, until, accountId,
 } = {}) {
   const query = {};
 
+  // 계정 축으로 보기 (여러 메일함을 등록한 경우).
+  // 계정 개념이 생기기 전 메일에는 accountId 가 없으므로 'main' 은 그것까지 포함한다.
+  if (accountId) {
+    query.accountId = accountId === 'main' ? { $in: ['main', null] } : accountId;
+  }
   if (classification) query.classification = { $in: String(classification).split(',') };
   if (status) query.status = { $in: String(status).split(',') };
   if (lang) query.lang = lang;
@@ -180,15 +185,34 @@ export async function getThread(key) {
 }
 
 /** 폴더별 동기화 상태 */
-export async function getSyncState(folder) {
+/**
+ * 증분 수집 기준점은 **계정마다 따로** 잡아야 한다.
+ * UID 는 메일함 안에서만 유일한 번호라, 계정이 둘 이상이면
+ * 같은 'INBOX' 라도 서로 다른 메일을 가리킨다. 하나로 묶으면
+ * 한쪽의 lastUid 가 다른 쪽을 건너뛰게 만들어 메일이 조용히 누락된다.
+ *
+ * 계정을 쓰지 않던 시절의 기록은 accountId 가 없으므로 'main' 으로 본다.
+ */
+const ACC = (accountId) => accountId || 'main';
+
+export async function getSyncState(folder, accountId) {
   const col = await collections.syncState();
-  return (await col.findOne({ folder })) || { folder, lastUid: 0, lastSyncAt: null, lastError: null };
+  const id = ACC(accountId);
+  const found = await col.findOne({ folder, accountId: id })
+    // 계정 개념이 없던 때 기록 (accountId 필드 자체가 없음)
+    || (id === 'main' ? await col.findOne({ folder, accountId: { $exists: false } }) : null);
+  return found || { folder, accountId: id, lastUid: 0, lastSyncAt: null, lastError: null };
 }
 
-export async function setSyncState(folder, patch) {
+export async function setSyncState(folder, patch, accountId) {
   await ensureIndexes();
   const col = await collections.syncState();
-  await col.updateOne({ folder }, { $set: { folder, ...patch } }, { upsert: true });
+  const id = ACC(accountId);
+  await col.updateOne(
+    { folder, accountId: id },
+    { $set: { folder, accountId: id, ...patch } },
+    { upsert: true },
+  );
 }
 
 /**

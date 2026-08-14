@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import MailAccounts from '@/components/MailAccounts';
 
 const inp = {
   width: '100%', padding: '9px 12px', borderRadius: 8,
@@ -45,7 +46,18 @@ export default function SettingsPage() {
       }).then((x) => x.json());
       if (!r.ok) throw new Error(r.error);
       setMsg('저장했습니다.');
-      setF((p) => ({ ...p, imapPass: '', smtpPass: '', imapPassSet: r.settings.imapPassSet, smtpPassSet: r.settings.smtpPassSet }));
+      setF((p) => ({
+        ...p,
+        imapPass: '', smtpPass: '',
+        imapPassSet: r.settings.imapPassSet, smtpPassSet: r.settings.smtpPassSet,
+        // 서버가 돌려준 계정 목록으로 맞춘다. 비밀번호는 내려오지 않으므로
+        // 입력칸을 비우고 '저장됨' 표시만 남긴다. 폴더 선택지는 화면에만 있는
+        // 값이라 서버 응답에 없으므로 들고 있던 것을 이어붙인다.
+        imapAccounts: (r.settings.imapAccounts || []).map((a) => {
+          const prev = (p.imapAccounts || []).find((x) => x.id === a.id);
+          return { ...a, pass: '', _preset: prev?._preset, _folders: prev?._folders };
+        }),
+      }));
     } catch (e) { setErr(String(e.message || e)); }
     setBusy(false);
   }
@@ -110,6 +122,14 @@ export default function SettingsPage() {
         </div>
 
         {test?.folders && <FolderPicker folders={test.folders} f={f} setF={setF} />}
+      </Section>
+
+      <Section title="메일 계정 (여러 메일함 함께 보기)"
+        desc="Gmail·네이버 등 다른 메일함도 함께 가져와 한 화면에서 볼 수 있습니다. 계정을 하나라도 등록하면 그때부터 여기 등록한 계정들만 수집하므로, 지금 쓰시는 메일함도 함께 등록해 주세요. 비밀번호는 저장 후 화면으로 다시 나오지 않습니다.">
+        <MailAccounts
+          accounts={f.imapAccounts || []}
+          onChange={(next) => setF((p) => ({ ...p, imapAccounts: next }))}
+        />
       </Section>
 
       <Section title="거래처 자동 분류"

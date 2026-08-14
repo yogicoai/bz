@@ -16,6 +16,7 @@ export const ALLOWED_KEYS = [
   'mailFromName', 'mailFromAddress',
   'claudeModel',
   'blockedDomains', 'blockedKeywords', 'systemSenders',
+  'imapAccounts', 'retiredGroups',
   'fetchLimit', 'autoAnalyze',
   'briefingEmail', 'briefingDays', 'dailyAnalyzeLimit',
 ];
@@ -57,6 +58,18 @@ export function defaults() {
     // 제목이 매번 달라 키워드로 못 잡고, gmail 주소라 도메인 차단도 쓸 수 없다.
     systemSenders: [],
 
+    /**
+     * 여러 메일함을 함께 수집할 때 쓰는 계정 목록.
+     *
+     * **비어 있으면 위의 imapHost/imapUser/… 한 계정만 쓴다** — 기존 설치는
+     * 이 값을 건드리지 않는 한 동작이 조금도 바뀌지 않는다.
+     * 계정을 하나라도 등록하면 그 목록이 수집 대상이 된다.
+     *
+     * 각 항목: { id, label, host, port, secure, user, pass, folders[], enabled }
+     * pass 는 화면으로 절대 반환하지 않는다(getPublicSettings 에서 제거).
+     */
+    imapAccounts: [],
+
     // 수집
     fetchLimit: 50,      // 1회 수집 시 최대 통수
     // 수집 직후 AI 분석(유료)까지 자동 실행할지. 기본은 꺼둔다 —
@@ -87,17 +100,96 @@ export async function getPublicSettings() {
     out[`${k}Set`] = Boolean(s[k]);
     delete out[k];
   }
+  // 계정별 비밀번호도 절대 내보내지 않는다 — 설정 여부만 알려준다
+  out.imapAccounts = (s.imapAccounts || []).map(({ pass, ...rest }) => ({
+    ...rest,
+    passSet: Boolean(pass),
+  }));
   return out;
+}
+
+/**
+ * 수집 대상 계정 목록 — 코드 전체가 여기만 보고 돌게 한다.
+ *
+ * 계정을 등록하지 않은 설치(대표님)에서는 기존 단일 계정을 그대로 감싸
+ * 하나짜리 목록으로 돌려주므로 동작이 바뀌지 않는다.
+ * id 를 'main' 으로 고정해, 이미 쌓인 sync_state·메일과 이어진다.
+ */
+export function accountsOf(settings = {}) {
+  const list = (settings.imapAccounts || []).filter((a) => a.enabled !== false && a.host && a.user);
+  if (list.length) return list;
+
+  return [{
+    id: 'main',
+    label: settings.imapUser || '메일 계정',
+    host: settings.imapHost || '',
+    port: Number(settings.imapPort) || 993,
+    secure: settings.imapSecure !== false,
+    user: settings.imapUser || '',
+    pass: settings.imapPass || '',
+    folders: [settings.imapFolder || 'INBOX', ...(settings.imapFolders || [])].filter(Boolean),
+    enabled: true,
+  }];
+}
+
+/** 계정 하나를 IMAP 함수들이 기대하는 settings 모양으로 바꾼다 */
+export function accountAsSettings(account, settings = {}) {
+  return {
+    ...settings,
+    imapHost: account.host,
+    imapPort: account.port,
+    imapSecure: account.secure,
+    imapUser: account.user,
+    imapPass: account.pass,
+  };
+}
+
+/**
+ * 계정 목록을 저장 가능한 형태로 다듬는다.
+ *
+ * 비밀번호는 화면으로 나가지 않으므로, 돌아온 값에 비밀번호가 없으면
+ * **같은 id 의 기존 비밀번호를 유지한다**. 그러지 않으면 사용자가 라벨만
+ * 고쳐 저장했을 때 비밀번호가 통째로 지워져 수집이 멈춘다.
+ */
+function normalizeAccounts(incoming, existing = []) {
+  const prev = new Map((existing || []).map((a) => [a.id, a]));
+  const used = new Set();
+
+  return (Array.isArray(incoming) ? incoming : [])
+    .map((a, i) => {
+      // id 는 sync_state·mails 가 참조하므로 한 번 정해지면 바뀌면 안 된다
+      let id = String(a.id || '').trim();
+      if (!id || used.has(id)) id = `acc${Date.now().toString(36)}${i}`;
+      used.add(id);
+
+      const old = prev.get(id);
+      const user = String(a.user || '').trim();
+      return {
+        id,
+        label: String(a.label || '').trim() || user || `계정 ${i + 1}`,
+        host: String(a.host || '').trim(),
+        port: Number(a.port) || 993,
+        secure: a.secure !== false,
+        user,
+        // 빈 값이면 기존 비밀번호 유지 (화면은 비밀번호를 돌려받지 못한다)
+        pass: a.pass ? String(a.pass) : (old?.pass || ''),
+        folders: Array.isArray(a.folders) ? a.folders.filter(Boolean) : (old?.folders || ['INBOX']),
+        enabled: a.enabled !== false,
+      };
+    })
+    .filter((a) => a.host && a.user);
 }
 
 export async function saveSettings(patch = {}) {
   const col = await collections.settings();
+  const current = await col.findOne({ _id: SETTINGS_ID });
   const update = {};
   for (const k of ALLOWED_KEYS) {
     if (!(k in patch)) continue;
     let v = patch[k];
     // 빈 비밀번호는 "변경 없음" 으로 간주 — 기존 값을 지우지 않는다
     if (SECRET_KEYS.includes(k) && !v) continue;
+    if (k === 'imapAccounts') v = normalizeAccounts(v, current?.imapAccounts);
     if (['imapPort', 'smtpPort', 'fetchLimit', 'briefingDays', 'dailyAnalyzeLimit'].includes(k)) {
       v = Number(v) || defaults()[k];
     }

@@ -3,7 +3,7 @@
  * 첨부파일 다운로드 — DB 에 파일을 쌓지 않고 요청 시점에 메일 서버에서 받아온다.
  */
 import { getMail } from '@/lib/mail/store';
-import { getSettings } from '@/lib/settings';
+import { getSettings, accountsOf, accountAsSettings } from '@/lib/settings';
 import { fetchAttachment } from '@/lib/mail/imap';
 
 export const dynamic = 'force-dynamic';
@@ -26,8 +26,17 @@ export async function GET(req, { params }) {
       );
     }
 
+    // 어느 메일함에서 온 메일인지에 따라 접속할 서버가 다르다.
+    // 계정을 여러 개 등록한 경우 이걸 안 맞추면 엉뚱한 서버에서 같은 UID 를
+    // 찾게 되어 다른 파일이 내려오거나 404 가 난다.
     const settings = await getSettings();
-    const { buffer } = await fetchAttachment(settings, {
+    const accounts = accountsOf(settings);
+    const account = accounts.find((a) => a.id === (mail.accountId || 'main')) || accounts[0];
+    if (!account) {
+      return new Response('메일 계정 설정을 찾을 수 없습니다.', { status: 500 });
+    }
+
+    const { buffer } = await fetchAttachment(accountAsSettings(account, settings), {
       folder: mail.folder,
       uid: mail.uid,
       partId: att.partId,
