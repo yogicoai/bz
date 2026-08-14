@@ -204,6 +204,42 @@ export async function fetchAttachment(settings, { folder, uid, partId }) {
 }
 
 /**
+ * 메일을 메일함의 휴지통으로 옮긴다.
+ *
+ * **영구 삭제는 하지 않는다.** 이 앱은 광고·자동발송을 자동으로 분류하는데,
+ * 그 판정이 틀릴 수 있다. 지금은 틀려도 라벨만 바뀌고 메일은 남지만,
+ * 영구 삭제를 붙이면 오판이 곧 자료 소실이 되고 되돌릴 방법이 없다.
+ * 휴지통으로만 옮기면 웹메일에서 그대로 복구할 수 있다.
+ *
+ * 휴지통 폴더 이름은 메일함마다 다르므로(Trash / 휴지통 / [Gmail]/휴지통)
+ * IMAP 이 알려주는 specialUse 표시를 먼저 쓰고, 없을 때만 이름으로 찾는다.
+ */
+export async function moveToTrash(settings, { folder, uid }) {
+  if (!folder || !uid) throw new Error('메일 위치 정보가 없습니다. 다시 수집한 뒤 시도하세요.');
+
+  return withClient(settings, async (client) => {
+    const boxes = await client.list();
+    const trash = boxes.find((b) => b.specialUse === '\\Trash')
+      || boxes.find((b) => /^(Trash|휴지통|Deleted Items|\[Gmail\]\/(Trash|휴지통))$/i.test(b.path));
+
+    if (!trash) {
+      throw new Error('메일함에서 휴지통 폴더를 찾지 못했습니다. 웹메일에서 직접 삭제해 주세요.');
+    }
+    if (trash.path === folder) {
+      throw new Error('이미 휴지통에 있는 메일입니다.');
+    }
+
+    const lock = await client.getMailboxLock(folder);
+    try {
+      await client.messageMove(String(uid), trash.path, { uid: true });
+      return { trash: trash.path };
+    } finally {
+      lock.release();
+    }
+  });
+}
+
+/**
  * 최근 N통만 가져온다 — 최초 수집이나 테스트용.
  */
 export async function fetchRecent(settings, { folder: folderArg, limit = 20 } = {}) {

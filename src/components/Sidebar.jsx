@@ -47,9 +47,10 @@ export default function Sidebar({ open = false, onClose }) {
     const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
     fetch(`/api/briefing?countOnly=true&date=${today}&days=1`)
       .then((r) => r.json())
-      // 오늘 것 + 아직 손대지 않은 지난 건. 오늘 온 게 0통이어도 밀린 것이 있으면
-      // 배지가 0 이 되어 "할 일 없음" 으로 읽히면 안 된다.
-      .then((r) => { if (alive && r.ok) setTodayCount((r.total || 0) + (r.missedTotal || 0)); })
+      // 오늘 들어온 것만 센다. 밀린 것까지 합치면 오늘 할 일이 없는 날에도
+      // 숫자가 남아 "오늘도 산더미" 로 읽힌다. 밀린 것은 브리핑 화면의
+      // '처리 전' 카드에서 따로 보여준다.
+      .then((r) => { if (alive && r.ok) setTodayCount(r.total || 0); })
       .catch(() => {});
     return () => { alive = false; };
   }, [path]); // 화면 이동 시 갱신 (체크 처리하면 줄어들도록)

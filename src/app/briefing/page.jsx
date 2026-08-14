@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import AccountAlert from '@/components/AccountAlert';
+import TrashButton from '@/components/TrashButton';
 import {
   classificationLabel, deadlineTypeLabel, urgencyLabel, ddayLabel, ddayTone, langLabel,
 } from '@/lib/labels';
@@ -17,6 +18,7 @@ const VIEW_LABEL = {
   all: '전체',
   reply: '답변 필요',
   deadline: '기한 있음',
+  missed: '처리 전',
   pending: '요약 대기',
   done: '검토 완료',
 };
@@ -43,8 +45,6 @@ function BriefingInner() {
   const [apiKeySet, setApiKeySet] = useState(true);
   // 위쪽 숫자 카드를 눌러 목록을 좁힌다 ('all' 이면 전체)
   const [view, setView] = useState('all');
-  // 지난 미처리 건 펼침 여부 (기본은 접어 둔다 — 오늘 것에 먼저 집중)
-  const [showMissed, setShowMissed] = useState(false);
 
   useEffect(() => {
     fetch('/api/estimate').then((r) => r.json())
@@ -68,10 +68,14 @@ function BriefingInner() {
   // "메일이 없다"고 오해하는 것을 막는다
   useEffect(() => { setView('all'); }, [date, days]);
 
-  // '검토 완료'는 오늘 목록을 거르는 게 아니라 다른 묶음(최근 한 달 처리분)을 본다
-  const shown = view === 'done'
-    ? (b?.done || [])
-    : (b?.items || []).filter(VIEW_FILTER[view] || VIEW_FILTER.all);
+  // '처리 전'·'검토 완료'는 오늘 목록을 거르는 게 아니라 다른 묶음을 본다.
+  //   처리 전  = 지난 30일 중 아직 손대지 않은 것
+  //   검토 완료 = 지난 30일 중 체크해서 처리한 것
+  const shown = view === 'missed'
+    ? (b?.missed || [])
+    : view === 'done'
+      ? (b?.done || [])
+      : (b?.items || []).filter(VIEW_FILTER[view] || VIEW_FILTER.all);
 
   /** 체크 = 처리완료(보관). 되돌리면 확인중으로. */
   async function toggle(mail) {
@@ -165,6 +169,9 @@ function BriefingInner() {
           <div className="cards" style={{ marginBottom: 10 }}>
             <Stat label="새 제안" value={b.total} sub="이 날짜에 들어온 제안"
               active={view === 'all'} onClick={() => setView('all')} />
+            <Stat label="처리 전" value={b.missedTotal || 0} tone={b.missedTotal ? 'warn' : null}
+              sub="지난 건 중 아직 안 본 것"
+              active={view === 'missed'} onClick={() => setView('missed')} />
             <Stat label="답변 필요" value={b.needsReply} tone={b.needsReply ? 'bad' : null}
               sub="상대가 회신을 기다리는 건"
               active={view === 'reply'} onClick={() => setView('reply')} />
@@ -226,7 +233,9 @@ function BriefingInner() {
               <div className="empty">
                 {view === 'done'
                   ? '최근 한 달 안에 검토 완료로 체크한 메일이 없습니다.'
-                  : view !== 'all'
+                  : view === 'missed'
+                    ? '밀려 있는 지난 제안이 없습니다. 👍'
+                    : view !== 'all'
                     ? `${VIEW_LABEL[view]}에 해당하는 메일이 없습니다.`
                     : '이 날짜에 새로 들어온 제안 메일이 없습니다.'}
                 {view === 'all' && !includeDone && (
@@ -235,38 +244,19 @@ function BriefingInner() {
               </div>
             </div>
           ) : (
-            shown.map((m, i) => <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)} />)
+            shown.map((m, i) => (
+              <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)} onTrashed={load} />
+            ))
           )}
 
-          {/* 아직 손대지 않은 지난 건.
-              하루치만 보여주면 어제 온 것을 오늘 열었을 때 화면이 비어
-              "처리할 게 없다"로 읽힌다. 실제로는 밀려 있는데도 그렇다. */}
-          {view === 'all' && b.missedTotal > 0 && (
-            <div style={{ marginTop: 22 }}>
-              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-                <div>
-                  <b style={{ fontSize: 15 }}>아직 처리하지 않은 지난 제안 {b.missedTotal}건</b>
-                  <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                    최근 한 달 안에 왔지만 아직 체크하지 않은 건입니다
-                    {b.missedNeedsReply > 0 && <> · 그중 답변 필요 {b.missedNeedsReply}건</>}
-                  </div>
-                </div>
-                <button className="btn secondary sm" onClick={() => setShowMissed((v) => !v)}>
-                  {showMissed ? '접기' : '펼쳐 보기'}
-                </button>
-              </div>
-              {showMissed && b.missed.map((m, i) => (
-                <Item key={m._id} mail={m} index={i + 1} onToggle={() => toggle(m)} />
-              ))}
-            </div>
-          )}
+
         </>
       )}
     </>
   );
 }
 
-function Item({ mail, index, onToggle }) {
+function Item({ mail, index, onToggle, onTrashed }) {
   const a = mail.analysis || {};
   const done = ['replied', 'archived', 'ignored'].includes(mail.status);
 
@@ -296,6 +286,12 @@ function Item({ mail, index, onToggle }) {
             {mail.group && <span className="badge b2b">{mail.group}</span>}
             <span className={`badge ${mail.classification}`}>{classificationLabel(mail.classification)}</span>
             {a.method !== 'ai' && <span className="badge">요약 없음</span>}
+
+            {/* 목록에서 바로 버릴 수 있게. 누르면 확인 창이 한 번 뜬다. */}
+            <div className="grow" />
+            {mail.trashedAt
+              ? <span className="badge" title={mail.trashedTo}>휴지통</span>
+              : <TrashButton mailId={mail._id} subject={mail.subject} onDone={onTrashed} />}
           </div>
 
           <Link href={`/mails/${mail._id}`}

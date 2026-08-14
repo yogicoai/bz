@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
+import TrashButton from '@/components/TrashButton';
 import {
   CLASSIFICATIONS, STATUSES,
   classificationLabel, statusLabel, langLabel, urgencyLabel,
@@ -172,6 +173,19 @@ export default function MailDetailPage({ params }) {
             {est && ` (≈₩${est.krw.toLocaleString()})`}
           </button>
           <a className="btn secondary" href={`/api/mails/${id}/doc`}>정리 파일 (.md) 다운로드</a>
+          <div className="grow" />
+          {/* 메일함 원본을 건드리는 유일한 버튼이라 오른쪽 끝에 따로 둔다 */}
+          {mail.trashedAt
+            ? <span className="badge" title={mail.trashedTo}>휴지통으로 옮김</span>
+            : (
+              <TrashButton
+                mailId={id}
+                subject={mail.subject}
+                size="md"
+                label="🗑 휴지통으로"
+                onDone={(r) => { load(); setMsg(r.message); }}
+              />
+            )}
         </div>
         {est && (
           <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
