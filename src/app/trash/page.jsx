@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import Loading from '@/components/Loading';
+import Loading, { Spinner } from '@/components/Loading';
 import { classificationLabel, langLabel } from '@/lib/labels';
 
 /**
@@ -23,6 +23,8 @@ export default function TrashPage() {
   const [count, setCount] = useState(0);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
+  const [restoring, setRestoring] = useState(null);
   const [q, setQ] = useState('');
 
   const load = useCallback(async () => {
@@ -39,15 +41,38 @@ export default function TrashPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  /**
+   * 되살리기 — **화면에서만** 다시 보이게 한다.
+   * 휴지통에서 사라진 것이 '되돌린 것'인지 '영구삭제된 것'인지 IMAP 으로는
+   * 구분할 수 없어 자동 복구를 없앴다. 대신 사람이 판단해 누른다.
+   */
+  async function restore(mail) {
+    if (!confirm(`'${(mail.subject || '').slice(0, 50)}'
+
+이 화면에서 다시 보이게 합니다.
+메일함 원본은 건드리지 않으므로, 웹메일 휴지통에 있다면 그쪽에서도 원래 폴더로 옮겨 주세요.
+
+계속할까요?`)) return;
+    setRestoring(mail._id); setErr(''); setMsg('');
+    try {
+      const r = await fetch(`/api/mails/${mail._id}/trash`, { method: 'DELETE' }).then((x) => x.json());
+      if (!r.ok) throw new Error(r.error);
+      setMsg(r.message);
+      await load();
+    } catch (e) { setErr(String(e.message || e)); }
+    setRestoring(null);
+  }
+
   return (
     <>
       <h1 className="page-title">🗑 휴지통</h1>
       <p className="page-sub">
         메일함의 휴지통으로 보낸 메일입니다. <b>실제 메일은 웹메일 휴지통에 그대로 있고</b>,
         여기서는 무엇을 언제 버렸는지 확인하실 수 있습니다.
-        되살리시려면 웹메일 휴지통에서 원래 폴더로 옮기신 뒤 다시 수집하세요.
+        잘못 버리셨으면 <b>[되살리기]</b>를 누르면 화면에 다시 나옵니다.
       </p>
 
+      {msg && <div className="card" style={{ borderColor: 'var(--good)', marginBottom: 14 }}>{msg}</div>}
       {err && <div className="card" style={{ borderColor: 'var(--bad)', marginBottom: 14 }}>{err}</div>}
 
       <div className="card toolbar" style={{ marginBottom: 16 }}>
@@ -77,6 +102,7 @@ export default function TrashPage() {
                   <th>제목 / 주제</th>
                   <th style={{ width: 90 }}>거래처</th>
                   <th style={{ width: 130 }}>버린 시각</th>
+                  <th style={{ width: 92 }}> </th>
                 </tr>
               </thead>
               <tbody>
@@ -97,7 +123,19 @@ export default function TrashPage() {
                       </div>
                     </td>
                     <td className="muted" style={{ fontSize: 12 }}>{m.group || '-'}</td>
-                    <td className="muted" style={{ fontSize: 12 }}>{fmt(m.trashedAt)}</td>
+                    <td className="muted" style={{ fontSize: 12 }}>
+                      {fmt(m.trashedAt)}
+                      <div style={{ fontSize: 10, marginTop: 2 }}>
+                        {m.trashedBy === 'webmail' ? '웹메일에서' : '이 화면에서'}
+                      </div>
+                    </td>
+                    <td>
+                      <button type="button" className="btn secondary sm"
+                        onClick={() => restore(m)} disabled={restoring === m._id}
+                        title="화면에서 다시 보이게 합니다 (메일함은 건드리지 않습니다)">
+                        {restoring === m._id ? <><Spinner /> 되살리는 중…</> : '되살리기'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
