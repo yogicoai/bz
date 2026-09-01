@@ -21,6 +21,8 @@ const PROJECTION = {
   status: 1, classification: 1, lang: 1, memo: 1, group: 1, groupBy: 1,
   // 메일함을 여럿 쓰면 "이게 어디로 온 건지" 가 판단에 들어간다
   accountId: 1,
+  // 웹메일에서 답한 건도 '처리됨' 으로 보여야 한다
+  repliedAt: 1, repliedBy: 1,
   'analysis.topic': 1, 'analysis.summary': 1, 'analysis.keyPoints': 1,
   'analysis.intent': 1, 'analysis.suggestedAction': 1, 'analysis.needsReply': 1,
   'analysis.deadline': 1, 'analysis.deadlineType': 1, 'analysis.urgency': 1,

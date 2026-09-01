@@ -54,7 +54,19 @@ export async function POST(req, { params }) {
         // DRY RUN 은 실제로 보낸 것이 아니므로 상태를 바꾸지 않는다
         $set: result.dryRun
           ? { updatedAt: new Date() }
-          : { status: 'replied', repliedAt: result.sentAt, updatedAt: new Date() },
+          : {
+            status: 'replied',
+            repliedAt: result.sentAt,
+            // 어디서 답했는지 — 웹메일에서 답한 것과 구분해 화면에 표시한다
+            repliedBy: 'app',
+            replyInfo: {
+              subject: body.subject,
+              to: [String(result.to || '').toLowerCase()],
+              at: result.sentAt,
+              messageId: result.messageId || null,
+            },
+            updatedAt: new Date(),
+          },
       },
     );
 

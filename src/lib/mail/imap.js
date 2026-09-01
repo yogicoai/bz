@@ -303,3 +303,77 @@ export async function fetchRecent(settings, { folder: folderArg, limit = 20 } = 
     }
   });
 }
+
+/**
+ * 보낸메일함·휴지통처럼 **역할이 정해진 폴더**의 실제 이름을 찾는다.
+ *
+ * 이름은 메일함마다 다르다(Sent / 보낸메일함 / [Gmail]/보낸편지함 …).
+ * IMAP 이 알려주는 specialUse 표시를 먼저 쓰고, 없을 때만 이름으로 찾는다.
+ *
+ * @param {'sent'|'trash'} role
+ */
+export const SPECIAL = {
+  sent: {
+    use: '\\Sent',
+    name: /^(Sent|Sent Items|Sent Messages|보낸메일함|보낸편지함|\[Gmail\]\/(Sent Mail|보낸편지함))$/i,
+  },
+  trash: {
+    use: '\\Trash',
+    name: /^(Trash|휴지통|Deleted Items|\[Gmail\]\/(Trash|휴지통))$/i,
+  },
+};
+
+export async function findSpecialFolder(settings, role) {
+  const spec = SPECIAL[role];
+  if (!spec) throw new Error(`알 수 없는 폴더 역할: ${role}`);
+  return withClient(settings, async (client) => {
+    const boxes = await client.list();
+    const hit = boxes.find((b) => b.specialUse === spec.use)
+      || boxes.find((b) => spec.name.test(b.path));
+    return hit?.path || null;
+  });
+}
+
+/**
+ * 폴더의 최근 N통에서 **본문 없이 봉투 정보만** 읽는다.
+ *
+ * 회신 여부·삭제 여부를 맞춰 보는 데는 Message-ID 와 In-Reply-To 만 있으면 된다.
+ * 본문(source)까지 받으면 보낸메일함 2,000통이 수백 MB가 되므로 절대 받지 않는다.
+ */
+export async function fetchEnvelopes(settings, { folder, limit = 300 } = {}) {
+  return withClient(settings, async (client) => {
+    const lock = await client.getMailboxLock(folder);
+    try {
+      const total = client.mailbox.exists;
+      if (!total) return { messages: [], total: 0, readAll: true };
+
+      const start = Math.max(1, total - limit + 1);
+      const messages = [];
+      for await (const msg of client.fetch(`${start}:*`, {
+        uid: true,
+        envelope: true,
+        // References 는 envelope 에 없어서 헤더로 따로 받는다 (수십 바이트)
+        headers: ['references'],
+      })) {
+        const raw = msg.headers ? msg.headers.toString('utf8') : '';
+        const refLine = raw.match(/^references:\s*([\s\S]*?)(?:\r?\n(?![ \t])|$)/im)?.[1] || '';
+        const e = msg.envelope || {};
+        messages.push({
+          uid: msg.uid,
+          messageId: e.messageId || '',
+          inReplyTo: e.inReplyTo || '',
+          references: refLine.split(/\s+/).map((x) => x.trim()).filter(Boolean),
+          subject: e.subject || '',
+          date: e.date || null,
+          to: (e.to || []).map((x) => String(x.address || '').toLowerCase()).filter(Boolean),
+          cc: (e.cc || []).map((x) => String(x.address || '').toLowerCase()).filter(Boolean),
+        });
+      }
+      // 폴더 전체를 다 읽었는지 — '되살아난 메일' 판정에 필요하다.
+      // 일부만 읽고 판단하면 안 읽은 옛 메일을 '휴지통에서 빠졌다'고 오해한다.
+      return { messages, total, readAll: start === 1 };
+    } finally {
+      lock.release();
+    }
+  });
+}

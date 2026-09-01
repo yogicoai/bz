@@ -227,6 +227,43 @@ export default function MailDetailPage({ params }) {
       {msg && <div className="card" style={{ borderColor: 'var(--good)', marginBottom: 14 }}>{msg}</div>}
       {err && <div className="card" style={{ borderColor: 'var(--bad)', marginBottom: 14 }}>{err}</div>}
 
+      {/* ── 회신했는지 ──
+          답장은 이 화면에서만 쓰는 것이 아니다. 웹메일·휴대폰에서 보낸 것도
+          보낸메일함을 읽어 여기 표시한다. 이게 없으면 이미 답한 건을 다시 붙잡는다. */}
+      {mail.repliedAt && (
+        <div className="card" style={{ marginBottom: 14, borderColor: 'var(--good)' }}>
+          <div className="row" style={{ gap: 8, alignItems: 'baseline' }}>
+            <span className="badge replied">회신함</span>
+            <b style={{ fontSize: 13 }}>{fmt(mail.repliedAt)}</b>
+            <span className="muted" style={{ fontSize: 12 }}>
+              {mail.repliedBy === 'webmail' ? '웹메일에서 보냄' : '이 화면에서 보냄'}
+            </span>
+          </div>
+          {mail.replyInfo?.subject && (
+            <div className="muted" style={{ fontSize: 12, marginTop: 6, overflowWrap: 'anywhere' }}>
+              {mail.replyInfo.to?.length ? `${mail.replyInfo.to.join(', ')} · ` : ''}
+              {mail.replyInfo.subject}
+            </div>
+          )}
+        </div>
+      )}
+
+      {mail.trashedAt && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="row" style={{ gap: 8, alignItems: 'baseline' }}>
+            <span className="badge">휴지통</span>
+            <b style={{ fontSize: 13 }}>{fmt(mail.trashedAt)}</b>
+            <span className="muted" style={{ fontSize: 12 }}>
+              {mail.trashedBy === 'webmail' ? '웹메일에서 지웠습니다' : '이 화면에서 옮겼습니다'}
+              {mail.trashedTo ? ` · ${mail.trashedTo}` : ''}
+            </span>
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+            웹메일 휴지통에서 원래 폴더로 되돌리면 다음 수집 때 이 표시도 풀립니다.
+          </div>
+        </div>
+      )}
+
       {/* ── 조작 바 ── */}
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="row">

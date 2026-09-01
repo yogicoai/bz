@@ -16,6 +16,7 @@ import {
   suggestGroupBySender, suggestGroupByName, listGroups,
 } from './groups';
 import { insertMail, getSyncState, setSyncState, findUnanalyzed } from './store';
+import { syncSentReplies, syncTrashed } from './reconcile';
 import { analyzeMail } from '@/lib/ai/analyze';
 import { buildMarkdown, writeLocalDoc } from './docgen';
 import { collections } from '@/lib/db';
@@ -248,6 +249,9 @@ export async function runIngest(opts = {}) {
     ruleFiltered: 0, grouped: 0, analyzed: 0,
     learnedSenders: learned?.size || 0,
     knownGroups: knownGroups.length,
+    // 이 도구 밖에서 벌어진 일 — 웹메일에서 보낸 회신 / 웹메일에서 지운 메일
+    replies: [], repliedFound: 0,
+    trashSync: [], trashedFound: 0, restoredFound: 0,
     errors: [],
     startedAt: new Date(),
   };
@@ -300,6 +304,25 @@ export async function runIngest(opts = {}) {
             stats.errors.push({ account: account.label, folder, error });
             await setSyncState(folder, { lastError: error, lastSyncAt: new Date() }, account.id);
           }
+        }
+
+        // 폴더를 다 읽은 뒤, **이 도구 밖에서 벌어진 일**을 따라잡는다.
+        // 웹메일·휴대폰에서 보낸 회신과 웹메일에서 지운 메일이 여기서 반영된다.
+        // 실패해도 수집 자체는 성공이다 — 이건 맞춰 주는 작업이지 수집이 아니다.
+        try {
+          const rep = await syncSentReplies(scoped, { account });
+          if (rep.folder) stats.replies.push({ account: account.label, ...rep });
+          stats.repliedFound += rep.matched;
+        } catch (e) {
+          stats.errors.push({ account: account.label, error: `회신 확인 실패: ${String(e?.message || e)}` });
+        }
+        try {
+          const tr = await syncTrashed(scoped, { account });
+          if (tr.folder) stats.trashSync.push({ account: account.label, ...tr });
+          stats.trashedFound += tr.trashed;
+          stats.restoredFound += tr.restored;
+        } catch (e) {
+          stats.errors.push({ account: account.label, error: `삭제 확인 실패: ${String(e?.message || e)}` });
         }
       });
     } catch (e) {

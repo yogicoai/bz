@@ -314,7 +314,13 @@ function MailsInner() {
                         })()
                       : <span className="muted" style={{ fontSize: 12 }}>-</span>}
                   </td>
-                  <td><span className={`badge ${m.status}`}>{statusLabel(m.status)}</span></td>
+                  <td>
+                    <span className={`badge ${m.status}`}>{statusLabel(m.status)}</span>
+                    {/* 웹메일에서 답한 건도 여기서 확인되어야 한다 */}
+                    {m.repliedBy === 'webmail' && (
+                      <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>웹메일에서 회신</div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
