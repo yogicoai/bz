@@ -10,8 +10,22 @@ import { classificationLabel, langLabel } from '@/lib/labels';
  *
  * 버린 것이 어디로 갔는지 볼 자리가 없으면 버리기를 망설이게 된다.
  * 실제 메일은 메일함(웹메일)의 휴지통에 있고, 여기서는 '무엇을 언제 버렸는지'를
- * 되짚는다. 되살리려면 웹메일 휴지통에서 원래 폴더로 옮기면 된다.
+ * 되짚는다.
+ *
+ * **아무것도 지우지 않는다.** 목록이 길어지는 것은 기간으로 좁혀서 본다 —
+ * 영구삭제를 이 화면에 두면 되돌릴 방법이 없어지고, 실수 한 번이 그대로 끝난다.
+ * 정말 없앨 것은 웹메일에서 지우는 편이 맞다.
  */
+
+/** 기간은 '받은 날짜' 기준이다.
+ *  버린 시각으로 좁히면 아무 소용이 없다 — 웹메일에서 지운 것을 뒤늦게 한꺼번에
+ *  알아차리므로 몇 년 치가 전부 같은 날 버린 것으로 기록된다(실측: 387건이 같은 날). */
+const PERIODS = [
+  { key: '30', label: '최근 한 달' },
+  { key: '90', label: '최근 3개월' },
+  { key: '365', label: '최근 1년' },
+  { key: '', label: '전체 기간' },
+];
 
 const fmt = (d) =>
   d ? new Date(d).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false }) : '-';
@@ -21,23 +35,38 @@ const fmtDay = (d) =>
 export default function TrashPage() {
   const [items, setItems] = useState([]);
   const [count, setCount] = useState(0);
+  // 기간을 걸기 전 전체 건수 — '숨겨진 N건' 을 정확히 알려주기 위해 따로 센다
+  const [total, setTotal] = useState(null);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [restoring, setRestoring] = useState(null);
   const [q, setQ] = useState('');
+  // 기본은 최근 한 달 — 오래된 것은 숨겨 두고 필요할 때 펼친다
+  const [days, setDays] = useState('30');
 
   const load = useCallback(async () => {
     setBusy(true); setErr('');
     try {
       const qs = new URLSearchParams({ trashed: 'true', limit: '200', sort: '-date' });
       if (q) qs.set('q', q);
-      const r = await fetch(`/api/mails?${qs}`).then((x) => x.json());
+      if (days) qs.set('since', new Date(Date.now() - Number(days) * 86400000).toISOString());
+
+      // 기간 밖에 몇 건이 있는지 함께 센다. 숫자를 보여주지 않으면
+      // '지워진 건가?' 로 읽힌다 — 이 화면은 아무것도 지우지 않는다.
+      const allQs = new URLSearchParams({ trashed: 'true', limit: '1' });
+      if (q) allQs.set('q', q);
+
+      const [r, all] = await Promise.all([
+        fetch(`/api/mails?${qs}`).then((x) => x.json()),
+        fetch(`/api/mails?${allQs}`).then((x) => x.json()),
+      ]);
       if (!r.ok) throw new Error(r.error);
       setItems(r.items); setCount(r.count);
+      setTotal(all.ok ? all.count : null);
     } catch (e) { setErr(String(e.message || e)); }
     setBusy(false);
-  }, [q]);
+  }, [q, days]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -63,6 +92,9 @@ export default function TrashPage() {
     setRestoring(null);
   }
 
+  const hidden = total != null && days ? Math.max(0, total - count) : 0;
+  const periodLabel = PERIODS.find((p) => p.key === days)?.label || '전체 기간';
+
   return (
     <>
       <h1 className="page-title">🗑 휴지통</h1>
@@ -76,21 +108,41 @@ export default function TrashPage() {
       {err && <div className="card" style={{ borderColor: 'var(--bad)', marginBottom: 14 }}>{err}</div>}
 
       <div className="card toolbar" style={{ marginBottom: 16 }}>
+        <select value={days} onChange={(e) => setDays(e.target.value)} title="받은 날짜 기준">
+          {PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+        </select>
         <div className="grow">
           <input placeholder="발신자·제목으로 찾기" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <span className="muted" style={{ fontSize: 13 }}>{count.toLocaleString()}건</span>
+        <span className="muted" style={{ fontSize: 13 }}>
+          {periodLabel} {count.toLocaleString()}건
+        </span>
       </div>
+
+      {/* 숨긴 것은 지운 것이 아니다 — 몇 건이 어디 있는지 반드시 알려준다 */}
+      {hidden > 0 && (
+        <div className="row" style={{ marginBottom: 12, gap: 8 }}>
+          <span className="muted" style={{ fontSize: 13 }}>
+            {periodLabel}보다 오래 받은 <b>{hidden.toLocaleString()}건</b>은 숨겨져 있습니다.
+            지워진 것이 아닙니다.
+          </span>
+          <button className="linklike" onClick={() => setDays('')}>전체 기간 보기</button>
+        </div>
+      )}
 
       <div className="card" style={{ padding: 0 }}>
         {busy && !items.length ? (
           <Loading />
         ) : !items.length ? (
           <div className="empty">
-            휴지통으로 보낸 메일이 없습니다.
-            <div style={{ fontSize: 12, marginTop: 6 }}>
-              메일 목록이나 상세 화면의 <b>🗑</b> 을 누르면 여기로 옵니다.
-            </div>
+            {days && hidden > 0
+              ? `${periodLabel} 안에는 버린 메일이 없습니다. 오래된 ${hidden.toLocaleString()}건은 위에서 [전체 기간]으로 보실 수 있습니다.`
+              : '휴지통으로 보낸 메일이 없습니다.'}
+            {!hidden && (
+              <div style={{ fontSize: 12, marginTop: 6 }}>
+                메일 목록이나 상세 화면의 <b>🗑</b> 을 누르면 여기로 옵니다.
+              </div>
+            )}
           </div>
         ) : (
           <div className="table-wrap">
