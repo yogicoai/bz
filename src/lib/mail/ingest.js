@@ -310,7 +310,12 @@ export async function runIngest(opts = {}) {
         // 웹메일·휴대폰에서 보낸 회신과 웹메일에서 지운 메일이 여기서 반영된다.
         // 실패해도 수집 자체는 성공이다 — 이건 맞춰 주는 작업이지 수집이 아니다.
         try {
-          const rep = await syncSentReplies(scoped, { account });
+          // replyScan 을 주면 보낸메일함을 그만큼 깊게 훑는다.
+          // 과거에 답한 건까지 한 번에 정리할 때 쓴다 (평소에는 최근분만 본다).
+          const rep = await syncSentReplies(scoped, {
+            account,
+            ...(opts.replyScan ? { limit: Number(opts.replyScan) } : {}),
+          });
           if (rep.folder) stats.replies.push({ account: account.label, ...rep });
           stats.repliedFound += rep.matched;
         } catch (e) {
